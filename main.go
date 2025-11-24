@@ -26,6 +26,8 @@ func main() {
 	app := configmongo.NewApp()
 	app.Use(middleware.LoggerMiddleware)
 	
+	routepostgre.UserRoutes(app, postgresDB)
+	
 	routepostgre.AlumniRoutes(app, postgresDB)
 	routepostgre.PekerjaanRoutes(app, postgresDB)
 	
