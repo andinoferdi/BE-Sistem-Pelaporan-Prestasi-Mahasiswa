@@ -9,13 +9,21 @@ import (
 )
 
 func UserRoutes(app *fiber.App, db *sql.DB) {
-	api := app.Group("/api")
+	auth := app.Group("/api/v1/auth")
 
-	api.Post("/login", func(c *fiber.Ctx) error {
+	auth.Post("/login", func(c *fiber.Ctx) error {
 		return servicepostgre.LoginService(c, db)
 	})
 
-	protected := api.Group("", middlewarepostgre.AuthRequired())
+	protected := auth.Group("", middlewarepostgre.AuthRequired())
+
+	protected.Post("/refresh", func(c *fiber.Ctx) error {
+		return servicepostgre.RefreshTokenService(c, db)
+	})
+
+	protected.Post("/logout", func(c *fiber.Ctx) error {
+		return servicepostgre.LogoutService(c, db)
+	})
 
 	protected.Get("/profile", func(c *fiber.Ctx) error {
 		return servicepostgre.GetProfileService(c, db)

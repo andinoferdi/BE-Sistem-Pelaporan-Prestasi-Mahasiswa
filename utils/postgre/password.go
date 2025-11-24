@@ -1,4 +1,4 @@
-package utils
+package postgre
 
 import "golang.org/x/crypto/bcrypt"
 

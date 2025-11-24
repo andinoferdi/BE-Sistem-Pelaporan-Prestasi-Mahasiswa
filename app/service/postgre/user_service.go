@@ -123,3 +123,57 @@ func GetProfileService(c *fiber.Ctx, db *sql.DB) error {
 	return c.Status(fiber.StatusOK).JSON(response)
 }
 
+func RefreshTokenService(c *fiber.Ctx, db *sql.DB) error {
+	userID, ok := c.Locals("user_id").(string)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "User ID tidak ditemukan. Silakan login ulang.",
+		})
+	}
+
+	user, err := repository.GetUserByID(db, userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"success": false,
+				"message": "Data user tidak ditemukan di database.",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Error mengambil data user dari database. Detail: " + err.Error(),
+		})
+	}
+
+	if !user.IsActive {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Akun Anda tidak aktif. Silakan hubungi administrator.",
+		})
+	}
+
+	token, err := utilspostgre.GenerateToken(*user)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Error generating token. Detail: " + err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Token berhasil di-refresh.",
+		"data": fiber.Map{
+			"token": token,
+		},
+	})
+}
+
+func LogoutService(c *fiber.Ctx, db *sql.DB) error {
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Logout berhasil.",
+	})
+}
+

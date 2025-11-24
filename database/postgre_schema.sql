@@ -1,3 +1,17 @@
+DROP EXTENSION IF EXISTS "uuid-ossp" CASCADE;
+
+DROP TABLE IF EXISTS achievement_references CASCADE;
+DROP TABLE IF EXISTS students CASCADE;
+DROP TABLE IF EXISTS lecturers CASCADE;
+DROP TABLE IF EXISTS role_permissions CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS permissions CASCADE;
+DROP TABLE IF EXISTS roles CASCADE;
+
+DROP TYPE IF EXISTS achievement_status CASCADE;
+
+DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE;
+
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TYPE achievement_status AS ENUM ('draft', 'submitted', 'verified', 'rejected');
@@ -78,15 +92,16 @@ CREATE INDEX idx_achievement_references_student_id ON achievement_references(stu
 CREATE INDEX idx_achievement_references_status ON achievement_references(status);
 CREATE INDEX idx_achievement_references_verified_by ON achievement_references(verified_by);
 
-INSERT INTO roles (name, description) VALUES
-('Admin', 'Pengelola sistem dengan akses penuh'),
-('Mahasiswa', 'Pelapor prestasi'),
-('Dosen Wali', 'Verifikator prestasi mahasiswa bimbingannya');
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
 
-INSERT INTO permissions (name, resource, action, description) VALUES
-('achievement:create', 'achievement', 'create', 'Membuat prestasi baru'),
-('achievement:read', 'achievement', 'read', 'Membaca data prestasi'),
-('achievement:update', 'achievement', 'update', 'Mengupdate data prestasi'),
-('achievement:delete', 'achievement', 'delete', 'Menghapus data prestasi'),
-('achievement:verify', 'achievement', 'verify', 'Memverifikasi prestasi'),
-('user:manage', 'user', 'manage', 'Mengelola pengguna');
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_achievement_references_updated_at BEFORE UPDATE ON achievement_references
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
