@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"database/sql"
 	utilspostgre "sistem-pelaporan-prestasi-mahasiswa/utils/postgre"
 
 	"github.com/gofiber/fiber/v2"
@@ -63,7 +64,7 @@ func RoleRequired(allowedRoles ...string) fiber.Handler {
 	}
 }
 
-func PermissionRequired(permission string) fiber.Handler {
+func PermissionRequired(db *sql.DB, permission string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		userID, ok := c.Locals("user_id").(string)
 		if !ok {
@@ -73,7 +74,7 @@ func PermissionRequired(permission string) fiber.Handler {
 			})
 		}
 
-		hasPermission, err := utilspostgre.CheckUserPermission(userID, permission)
+		hasPermission, err := utilspostgre.CheckUserPermission(db, userID, permission)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success": false,
