@@ -112,7 +112,7 @@ Buat file `.env` di root project dengan konfigurasi berikut:
 
 ```env
 # Application
-APP_PORT=3000
+APP_PORT=3001
 
 # PostgreSQL
 DB_DSN=postgres://username:password@localhost:5432/dbname?sslmode=disable
@@ -143,7 +143,7 @@ JWT_SECRET=your-secret-key-minimum-32-characters-long-for-production-security
 go run main.go
 ```
 
-Server akan berjalan di `http://localhost:3000` (atau sesuai `APP_PORT` di `.env`)
+Server akan berjalan di `http://localhost:3001` (atau sesuai `APP_PORT` di `.env`, default: 3001)
 
 ### Build Binary
 
