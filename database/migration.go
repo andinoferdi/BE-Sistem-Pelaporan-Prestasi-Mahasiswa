@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -138,7 +137,6 @@ const postgresSampleDataSQL = `-- Sample Data untuk PostgreSQL
 -- Jalankan file ini setelah menjalankan postgre_schema.sql
 
 -- Hapus data yang sudah ada (jika ada)
-DELETE FROM achievement_references;
 DELETE FROM students;
 DELETE FROM lecturers;
 DELETE FROM role_permissions;
@@ -235,89 +233,7 @@ SELECT
         WHEN 'mahasiswa3' THEN (SELECT l.id FROM lecturers l JOIN users u2 ON l.user_id = u2.id WHERE u2.username = 'dosen3' LIMIT 1)
     END
 FROM users u
-WHERE u.username IN ('mahasiswa1', 'mahasiswa2', 'mahasiswa3');
-
--- Insert Achievement References
--- Sample dengan berbagai status: draft, submitted, verified, rejected
-INSERT INTO achievement_references (student_id, mongo_achievement_id, status, submitted_at, verified_at, verified_by, rejection_note, created_at, updated_at)
-SELECT 
-    s.id,
-    '507f1f77bcf86cd799439011',
-    'draft',
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NOW(),
-    NOW()
-FROM students s
-JOIN users u ON s.user_id = u.id
-WHERE u.username = 'mahasiswa1'
-LIMIT 1;
-
-INSERT INTO achievement_references (student_id, mongo_achievement_id, status, submitted_at, verified_at, verified_by, rejection_note, created_at, updated_at)
-SELECT 
-    s.id,
-    '507f1f77bcf86cd799439012',
-    'submitted',
-    NOW() - INTERVAL '2 days',
-    NULL,
-    NULL,
-    NULL,
-    NOW() - INTERVAL '3 days',
-    NOW() - INTERVAL '2 days'
-FROM students s
-JOIN users u ON s.user_id = u.id
-WHERE u.username = 'mahasiswa1'
-LIMIT 1;
-
-INSERT INTO achievement_references (student_id, mongo_achievement_id, status, submitted_at, verified_at, verified_by, rejection_note, created_at, updated_at)
-SELECT 
-    s.id,
-    '507f1f77bcf86cd799439013',
-    'verified',
-    NOW() - INTERVAL '5 days',
-    NOW() - INTERVAL '3 days',
-    (SELECT u.id FROM users u WHERE u.username = 'dosen1' LIMIT 1),
-    NULL,
-    NOW() - INTERVAL '6 days',
-    NOW() - INTERVAL '3 days'
-FROM students s
-JOIN users u ON s.user_id = u.id
-WHERE u.username = 'mahasiswa2'
-LIMIT 1;
-
-INSERT INTO achievement_references (student_id, mongo_achievement_id, status, submitted_at, verified_at, verified_by, rejection_note, created_at, updated_at)
-SELECT 
-    s.id,
-    '507f1f77bcf86cd799439014',
-    'rejected',
-    NOW() - INTERVAL '4 days',
-    NULL,
-    (SELECT u.id FROM users u WHERE u.username = 'dosen2' LIMIT 1),
-    'Dokumen tidak lengkap. Silakan lengkapi dokumen pendukung.',
-    NOW() - INTERVAL '5 days',
-    NOW() - INTERVAL '1 day'
-FROM students s
-JOIN users u ON s.user_id = u.id
-WHERE u.username = 'mahasiswa2'
-LIMIT 1;
-
-INSERT INTO achievement_references (student_id, mongo_achievement_id, status, submitted_at, verified_at, verified_by, rejection_note, created_at, updated_at)
-SELECT 
-    s.id,
-    '507f1f77bcf86cd799439015',
-    'submitted',
-    NOW() - INTERVAL '1 day',
-    NULL,
-    NULL,
-    NULL,
-    NOW() - INTERVAL '2 days',
-    NOW() - INTERVAL '1 day'
-FROM students s
-JOIN users u ON s.user_id = u.id
-WHERE u.username = 'mahasiswa3'
-LIMIT 1;`
+WHERE u.username IN ('mahasiswa1', 'mahasiswa2', 'mahasiswa3');`
 
 // RunMigrations menjalankan migrasi PostgreSQL dan MongoDB secara berurutan.
 func RunMigrations(postgresDB *sql.DB, mongoDB *mongo.Database) error {
@@ -327,12 +243,7 @@ func RunMigrations(postgresDB *sql.DB, mongoDB *mongo.Database) error {
 		return fmt.Errorf("postgres migrations failed: %w", err)
 	}
 
-	studentIDs, err := fetchStudentIDs(postgresDB)
-	if err != nil {
-		return fmt.Errorf("fetching student IDs: %w", err)
-	}
-
-	if err := runMongoMigrations(mongoDB, studentIDs); err != nil {
+	if err := runMongoMigrations(mongoDB); err != nil {
 		return fmt.Errorf("mongo migrations failed: %w", err)
 	}
 
@@ -366,35 +277,7 @@ func runPostgresMigrations(db *sql.DB) error {
 	return nil
 }
 
-func fetchStudentIDs(db *sql.DB) (map[string]string, error) {
-	rows, err := db.Query(`
-		SELECT s.id, u.username
-		FROM students s
-		INNER JOIN users u ON u.id = s.user_id
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("query students: %w", err)
-	}
-	defer rows.Close()
-
-	studentIDs := make(map[string]string)
-	for rows.Next() {
-		var id string
-		var username string
-		if err := rows.Scan(&id, &username); err != nil {
-			return nil, fmt.Errorf("scan student row: %w", err)
-		}
-		studentIDs[username] = id
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate student rows: %w", err)
-	}
-
-	return studentIDs, nil
-}
-
-func runMongoMigrations(db *mongo.Database, studentIDs map[string]string) error {
+func runMongoMigrations(db *mongo.Database) error {
 	log.Println("Running MongoDB migrations...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -405,10 +288,6 @@ func runMongoMigrations(db *mongo.Database, studentIDs map[string]string) error 
 	}
 
 	if err := createAchievementIndexes(ctx, db); err != nil {
-		return err
-	}
-
-	if err := seedAchievementData(ctx, db, studentIDs); err != nil {
 		return err
 	}
 
@@ -465,171 +344,4 @@ func createAchievementIndexes(ctx context.Context, db *mongo.Database) error {
 
 	log.Println("Created indexes for achievements collection")
 	return nil
-}
-
-func seedAchievementData(ctx context.Context, db *mongo.Database, studentIDs map[string]string) error {
-	log.Println("Seeding MongoDB achievements collection...")
-
-	collection := db.Collection("achievements")
-
-	studentMahasiswa1, err := studentIDFor(studentIDs, "mahasiswa1")
-	if err != nil {
-		return err
-	}
-
-	studentMahasiswa2, err := studentIDFor(studentIDs, "mahasiswa2")
-	if err != nil {
-		return err
-	}
-
-	studentMahasiswa3, err := studentIDFor(studentIDs, "mahasiswa3")
-	if err != nil {
-		return err
-	}
-
-	id1, err := primitive.ObjectIDFromHex("507f1f77bcf86cd799439011")
-	if err != nil {
-		return fmt.Errorf("invalid object id 507f1f77bcf86cd799439011: %w", err)
-	}
-	id2, err := primitive.ObjectIDFromHex("507f1f77bcf86cd799439012")
-	if err != nil {
-		return fmt.Errorf("invalid object id 507f1f77bcf86cd799439012: %w", err)
-	}
-	id3, err := primitive.ObjectIDFromHex("507f1f77bcf86cd799439013")
-	if err != nil {
-		return fmt.Errorf("invalid object id 507f1f77bcf86cd799439013: %w", err)
-	}
-	id4, err := primitive.ObjectIDFromHex("507f1f77bcf86cd799439014")
-	if err != nil {
-		return fmt.Errorf("invalid object id 507f1f77bcf86cd799439014: %w", err)
-	}
-	id5, err := primitive.ObjectIDFromHex("507f1f77bcf86cd799439015")
-	if err != nil {
-		return fmt.Errorf("invalid object id 507f1f77bcf86cd799439015: %w", err)
-	}
-
-	docs := []interface{}{
-		bson.M{
-			"_id":            id1,
-			"studentId":      studentMahasiswa1,
-			"achievementType": "competition",
-			"title":          "Juara 1 Lomba Programming Nasional",
-			"description":    "Meraih juara 1 dalam kompetisi programming tingkat nasional",
-			"details": bson.M{
-				"competitionName":  "National Programming Contest 2025",
-				"competitionLevel": "national",
-				"rank":             1,
-				"medalType":        "Gold",
-				"eventDate":        time.Date(2025, time.January, 15, 0, 0, 0, 0, time.UTC),
-				"location":         "Jakarta",
-				"organizer":        "Kementerian Pendidikan",
-			},
-			"attachments": []bson.M{
-				{
-					"fileName":   "sertifikat.pdf",
-					"fileUrl":    "/uploads/sertifikat.pdf",
-					"fileType":   "application/pdf",
-					"uploadedAt": time.Date(2025, time.January, 20, 10, 0, 0, 0, time.UTC),
-				},
-			},
-			"tags":      []string{"programming", "competition", "national"},
-			"points":    100,
-			"createdAt": time.Date(2025, time.January, 20, 10, 0, 0, 0, time.UTC),
-			"updatedAt": time.Date(2025, time.January, 20, 10, 0, 0, 0, time.UTC),
-		},
-		bson.M{
-			"_id":            id2,
-			"studentId":      studentMahasiswa1,
-			"achievementType": "publication",
-			"title":          "Paper di International Conference",
-			"description":    "Publikasi paper di konferensi internasional",
-			"details": bson.M{
-				"publicationType":  "conference",
-				"publicationTitle": "Machine Learning Applications in Education",
-				"authors":          []string{"John Doe", "Jane Smith"},
-				"publisher":        "IEEE",
-				"issn":             "1234-5678",
-				"eventDate":        time.Date(2025, time.February, 10, 0, 0, 0, 0, time.UTC),
-			},
-			"tags":      []string{"publication", "research", "conference"},
-			"points":    150,
-			"createdAt": time.Date(2025, time.February, 15, 10, 0, 0, 0, time.UTC),
-			"updatedAt": time.Date(2025, time.February, 15, 10, 0, 0, 0, time.UTC),
-		},
-		bson.M{
-			"_id":            id3,
-			"studentId":      studentMahasiswa2,
-			"achievementType": "organization",
-			"title":          "Ketua Himpunan Mahasiswa",
-			"description":    "Menjadi ketua himpunan mahasiswa selama 1 tahun",
-			"details": bson.M{
-				"organizationName": "Himpunan Mahasiswa Teknik Informatika",
-				"position":         "Ketua",
-				"period": bson.M{
-					"start": time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC),
-					"end":   time.Date(2024, time.December, 31, 0, 0, 0, 0, time.UTC),
-				},
-			},
-			"tags":      []string{"organization", "leadership"},
-			"points":    80,
-			"createdAt": time.Date(2025, time.January, 5, 10, 0, 0, 0, time.UTC),
-			"updatedAt": time.Date(2025, time.January, 5, 10, 0, 0, 0, time.UTC),
-		},
-		bson.M{
-			"_id":            id4,
-			"studentId":      studentMahasiswa2,
-			"achievementType": "certification",
-			"title":          "AWS Certified Solutions Architect",
-			"description":    "Sertifikasi AWS Solutions Architect Associate",
-			"details": bson.M{
-				"certificationName":   "AWS Certified Solutions Architect - Associate",
-				"issuedBy":            "Amazon Web Services",
-				"certificationNumber": "AWS-123456789",
-				"validUntil":          time.Date(2027, time.December, 31, 0, 0, 0, 0, time.UTC),
-				"eventDate":           time.Date(2025, time.March, 1, 0, 0, 0, 0, time.UTC),
-			},
-			"attachments": []bson.M{
-				{
-					"fileName":   "aws_certificate.pdf",
-					"fileUrl":    "/uploads/aws_certificate.pdf",
-					"fileType":   "application/pdf",
-					"uploadedAt": time.Date(2025, time.March, 5, 10, 0, 0, 0, time.UTC),
-				},
-			},
-			"tags":      []string{"certification", "aws", "cloud"},
-			"points":    120,
-			"createdAt": time.Date(2025, time.March, 5, 10, 0, 0, 0, time.UTC),
-			"updatedAt": time.Date(2025, time.March, 5, 10, 0, 0, 0, time.UTC),
-		},
-		bson.M{
-			"_id":            id5,
-			"studentId":      studentMahasiswa3,
-			"achievementType": "academic",
-			"title":          "IPK 3.95 Semester 7",
-			"description":    "Mencapai IPK 3.95 pada semester 7",
-			"details": bson.M{
-				"score":     3.95,
-				"eventDate": time.Date(2025, time.January, 31, 0, 0, 0, 0, time.UTC),
-			},
-			"tags":      []string{"academic", "gpa"},
-			"points":    50,
-			"createdAt": time.Date(2025, time.February, 1, 10, 0, 0, 0, time.UTC),
-			"updatedAt": time.Date(2025, time.February, 1, 10, 0, 0, 0, time.UTC),
-		},
-	}
-
-	if _, err := collection.InsertMany(ctx, docs); err != nil {
-		return fmt.Errorf("insert achievements: %w", err)
-	}
-
-	log.Println("Seeded MongoDB achievements collection")
-	return nil
-}
-
-func studentIDFor(studentIDs map[string]string, username string) (string, error) {
-	id, ok := studentIDs[username]
-	if !ok || id == "" {
-		return "", fmt.Errorf("student id for %s not found", username)
-	}
-	return id, nil
 }

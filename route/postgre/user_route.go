@@ -8,7 +8,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func UserRoutes(app *fiber.App, db *sql.DB) {
+func UserRoutes(app *fiber.App, db *sql.DB, instanceID string) {
+	app.Get("/api/v1/health", func(c *fiber.Ctx) error {
+		c.Locals("server_instance_id", instanceID)
+		return servicepostgre.HealthCheckService(c)
+	})
+
 	auth := app.Group("/api/v1/auth")
 
 	auth.Post("/login", func(c *fiber.Ctx) error {

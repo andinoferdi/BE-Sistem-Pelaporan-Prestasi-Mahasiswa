@@ -17,7 +17,7 @@ type AchievementReference struct {
 	SubmittedAt        *time.Time `json:"submitted_at"`
 	VerifiedAt         *time.Time `json:"verified_at"`
 	VerifiedBy         *string    `json:"verified_by"`
-	RejectionNote      string     `json:"rejection_note"`
+	RejectionNote      *string    `json:"rejection_note"`
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
 }

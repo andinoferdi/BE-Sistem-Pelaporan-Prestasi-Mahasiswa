@@ -2,7 +2,6 @@
 -- Jalankan file ini setelah menjalankan postgre_schema.sql
 
 -- Hapus data yang sudah ada (jika ada)
-DELETE FROM achievement_references;
 DELETE FROM students;
 DELETE FROM lecturers;
 DELETE FROM role_permissions;
@@ -100,86 +99,4 @@ SELECT
     END
 FROM users u
 WHERE u.username IN ('mahasiswa1', 'mahasiswa2', 'mahasiswa3');
-
--- Insert Achievement References
--- Sample dengan berbagai status: draft, submitted, verified, rejected
-INSERT INTO achievement_references (student_id, mongo_achievement_id, status, submitted_at, verified_at, verified_by, rejection_note, created_at, updated_at)
-SELECT 
-    s.id,
-    '507f1f77bcf86cd799439011',
-    'draft',
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NOW(),
-    NOW()
-FROM students s
-JOIN users u ON s.user_id = u.id
-WHERE u.username = 'mahasiswa1'
-LIMIT 1;
-
-INSERT INTO achievement_references (student_id, mongo_achievement_id, status, submitted_at, verified_at, verified_by, rejection_note, created_at, updated_at)
-SELECT 
-    s.id,
-    '507f1f77bcf86cd799439012',
-    'submitted',
-    NOW() - INTERVAL '2 days',
-    NULL,
-    NULL,
-    NULL,
-    NOW() - INTERVAL '3 days',
-    NOW() - INTERVAL '2 days'
-FROM students s
-JOIN users u ON s.user_id = u.id
-WHERE u.username = 'mahasiswa1'
-LIMIT 1;
-
-INSERT INTO achievement_references (student_id, mongo_achievement_id, status, submitted_at, verified_at, verified_by, rejection_note, created_at, updated_at)
-SELECT 
-    s.id,
-    '507f1f77bcf86cd799439013',
-    'verified',
-    NOW() - INTERVAL '5 days',
-    NOW() - INTERVAL '3 days',
-    (SELECT u.id FROM users u WHERE u.username = 'dosen1' LIMIT 1),
-    NULL,
-    NOW() - INTERVAL '6 days',
-    NOW() - INTERVAL '3 days'
-FROM students s
-JOIN users u ON s.user_id = u.id
-WHERE u.username = 'mahasiswa2'
-LIMIT 1;
-
-INSERT INTO achievement_references (student_id, mongo_achievement_id, status, submitted_at, verified_at, verified_by, rejection_note, created_at, updated_at)
-SELECT 
-    s.id,
-    '507f1f77bcf86cd799439014',
-    'rejected',
-    NOW() - INTERVAL '4 days',
-    NULL,
-    (SELECT u.id FROM users u WHERE u.username = 'dosen2' LIMIT 1),
-    'Dokumen tidak lengkap. Silakan lengkapi dokumen pendukung.',
-    NOW() - INTERVAL '5 days',
-    NOW() - INTERVAL '1 day'
-FROM students s
-JOIN users u ON s.user_id = u.id
-WHERE u.username = 'mahasiswa2'
-LIMIT 1;
-
-INSERT INTO achievement_references (student_id, mongo_achievement_id, status, submitted_at, verified_at, verified_by, rejection_note, created_at, updated_at)
-SELECT 
-    s.id,
-    '507f1f77bcf86cd799439015',
-    'submitted',
-    NOW() - INTERVAL '1 day',
-    NULL,
-    NULL,
-    NULL,
-    NOW() - INTERVAL '2 days',
-    NOW() - INTERVAL '1 day'
-FROM students s
-JOIN users u ON s.user_id = u.id
-WHERE u.username = 'mahasiswa3'
-LIMIT 1;
 

@@ -332,3 +332,24 @@ func LogoutService(c *fiber.Ctx, db *sql.DB) error {
 	})
 }
 
+func HealthCheckService(c *fiber.Ctx) error {
+	instanceID := c.Locals("server_instance_id")
+	if instanceID == nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "error",
+			"data": fiber.Map{
+				"message": "Server instance ID tidak ditemukan.",
+			},
+		})
+	}
+
+	response := fiber.Map{
+		"status": "success",
+		"data": fiber.Map{
+			"instanceId": instanceID,
+		},
+	}
+
+	return c.Status(fiber.StatusOK).JSON(response)
+}
+
