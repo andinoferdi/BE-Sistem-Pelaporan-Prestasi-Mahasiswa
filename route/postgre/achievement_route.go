@@ -16,8 +16,16 @@ func AchievementRoutes(app *fiber.App, postgresDB *sql.DB, mongoDB *mongo.Databa
 		return servicepostgre.GetAchievementsService(c, postgresDB, mongoDB)
 	})
 
+	achievements.Get("/:id", middlewarepostgre.PermissionRequired(postgresDB, "achievement:read"), func(c *fiber.Ctx) error {
+		return servicepostgre.GetAchievementByIDService(c, postgresDB, mongoDB)
+	})
+
 	achievements.Post("", middlewarepostgre.PermissionRequired(postgresDB, "achievement:create"), func(c *fiber.Ctx) error {
 		return servicepostgre.CreateAchievementService(c, postgresDB, mongoDB)
+	})
+
+	achievements.Put("/:id", middlewarepostgre.PermissionRequired(postgresDB, "achievement:update"), func(c *fiber.Ctx) error {
+		return servicepostgre.UpdateAchievementService(c, postgresDB, mongoDB)
 	})
 
 	achievements.Post("/upload", middlewarepostgre.PermissionRequired(postgresDB, "achievement:create"), func(c *fiber.Ctx) error {
