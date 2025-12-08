@@ -14,6 +14,7 @@ import (
 
 const postgresSchemaSQL = `DROP EXTENSION IF EXISTS "uuid-ossp" CASCADE;
 
+DROP TABLE IF EXISTS notifications CASCADE;
 DROP TABLE IF EXISTS refresh_tokens CASCADE;
 DROP TABLE IF EXISTS achievement_references CASCADE;
 DROP TABLE IF EXISTS students CASCADE;
@@ -24,12 +25,15 @@ DROP TABLE IF EXISTS permissions CASCADE;
 DROP TABLE IF EXISTS roles CASCADE;
 
 DROP TYPE IF EXISTS achievement_status CASCADE;
+DROP TYPE IF EXISTS notification_type CASCADE;
 
 DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE;
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TYPE achievement_status AS ENUM ('draft', 'submitted', 'verified', 'rejected', 'deleted');
+
+CREATE TYPE notification_type AS ENUM ('achievement_rejected', 'achievement_submitted');
 
 CREATE TABLE roles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -119,6 +123,26 @@ CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
 CREATE INDEX idx_refresh_tokens_token ON refresh_tokens(token);
 CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
 
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type notification_type NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    achievement_id UUID REFERENCES achievement_references(id) ON DELETE CASCADE,
+    mongo_achievement_id VARCHAR(24),
+    is_read BOOLEAN DEFAULT false,
+    read_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX idx_notifications_created_at ON notifications(created_at);
+CREATE INDEX idx_notifications_achievement_id ON notifications(achievement_id);
+CREATE INDEX idx_notifications_mongo_achievement_id ON notifications(mongo_achievement_id);
+
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -131,6 +155,9 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_achievement_references_updated_at BEFORE UPDATE ON achievement_references
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_notifications_updated_at BEFORE UPDATE ON notifications
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();`
 
 const postgresSampleDataSQL = `-- Sample Data untuk PostgreSQL

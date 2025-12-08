@@ -38,6 +38,7 @@ func main() {
 	routepostgre.StudentRoutes(app, postgresDB, mongoDB)
 	routepostgre.LecturerRoutes(app, postgresDB)
 	routepostgre.ReportRoutes(app, postgresDB)
+	routepostgre.NotificationRoutes(app, postgresDB)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {

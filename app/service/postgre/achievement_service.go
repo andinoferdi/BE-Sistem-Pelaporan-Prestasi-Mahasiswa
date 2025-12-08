@@ -180,7 +180,7 @@ func CreateAchievementService(c *fiber.Ctx, postgresDB *sql.DB, mongoDB *mongo.D
 	return c.Status(fiber.StatusOK).JSON(response)
 }
 
-func SubmitAchievementService(c *fiber.Ctx, postgresDB *sql.DB) error {
+func SubmitAchievementService(c *fiber.Ctx, postgresDB *sql.DB, mongoDB *mongo.Database) error {
 	userID, ok := c.Locals("user_id").(string)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -295,6 +295,11 @@ func SubmitAchievementService(c *fiber.Ctx, postgresDB *sql.DB) error {
 				"message": "Error mengambil data prestasi yang diupdate. Detail: " + err.Error(),
 			},
 		})
+	}
+
+	err = CreateSubmissionNotification(postgresDB, mongoDB, ref.StudentID, ref.MongoAchievementID, ref.ID)
+	if err != nil {
+		fmt.Printf("Error creating notification for submitted achievement: %v\n", err)
 	}
 
 	response := modelpostgre.UpdateAchievementReferenceResponse{
@@ -453,7 +458,7 @@ func VerifyAchievementService(c *fiber.Ctx, postgresDB *sql.DB) error {
 	return c.Status(fiber.StatusOK).JSON(response)
 }
 
-func RejectAchievementService(c *fiber.Ctx, postgresDB *sql.DB) error {
+func RejectAchievementService(c *fiber.Ctx, postgresDB *sql.DB, mongoDB *mongo.Database) error {
 	userID, ok := c.Locals("user_id").(string)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -610,6 +615,11 @@ func RejectAchievementService(c *fiber.Ctx, postgresDB *sql.DB) error {
 				"message": "Error mengambil data prestasi yang diupdate. Detail: " + err.Error(),
 			},
 		})
+	}
+
+	err = CreateAchievementNotification(postgresDB, mongoDB, student.UserID, ref.MongoAchievementID, ref.ID, req.RejectionNote)
+	if err != nil {
+		fmt.Printf("Error creating notification for rejected achievement (ID: %s, UserID: %s): %v\n", ref.ID, student.UserID, err)
 	}
 
 	response := modelpostgre.RejectAchievementResponse{
@@ -986,18 +996,18 @@ func GetAchievementsService(c *fiber.Ctx, postgresDB *sql.DB, mongoDB *mongo.Dat
 		student, err := repositorypostgre.GetStudentByUserID(postgresDB, userID)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"status": "error",
-				"data": fiber.Map{
+			"status": "error",
+			"data": fiber.Map{
 					"message": "Error mengambil data student. Detail: " + err.Error(),
-				},
-			})
-		}
+			},
+		})
+	}
 
 		references, total, err = repositorypostgre.GetAchievementReferenceByStudentIDPaginated(postgresDB, student.ID, page, limit)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"status": "error",
-				"data": fiber.Map{
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "error",
+			"data": fiber.Map{
 					"message": "Error mengambil achievement references. Detail: " + err.Error(),
 				},
 			})
@@ -1017,16 +1027,16 @@ func GetAchievementsService(c *fiber.Ctx, postgresDB *sql.DB, mongoDB *mongo.Dat
 				"status": "error",
 				"data": fiber.Map{
 					"message": "Error mengambil data dosen wali. Detail: " + err.Error(),
-				},
-			})
-		}
+			},
+		})
+	}
 
 		references, total, err = repositorypostgre.GetAchievementReferencesByAdvisorIDPaginated(postgresDB, lecturer.ID, page, limit)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"status": "error",
-				"data": fiber.Map{
-					"message": "Error mengambil achievement references. Detail: " + err.Error(),
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "error",
+			"data": fiber.Map{
+				"message": "Error mengambil achievement references. Detail: " + err.Error(),
 				},
 			})
 		}

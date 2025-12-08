@@ -35,7 +35,7 @@ func AchievementRoutes(app *fiber.App, postgresDB *sql.DB, mongoDB *mongo.Databa
 	})
 
 	achievements.Post("/:id/submit", middlewarepostgre.PermissionRequired(postgresDB, "achievement:update"), func(c *fiber.Ctx) error {
-		return servicepostgre.SubmitAchievementService(c, postgresDB)
+		return servicepostgre.SubmitAchievementService(c, postgresDB, mongoDB)
 	})
 
 	achievements.Post("/:id/verify", middlewarepostgre.PermissionRequired(postgresDB, "achievement:verify"), func(c *fiber.Ctx) error {
@@ -43,7 +43,7 @@ func AchievementRoutes(app *fiber.App, postgresDB *sql.DB, mongoDB *mongo.Databa
 	})
 
 	achievements.Post("/:id/reject", middlewarepostgre.PermissionRequired(postgresDB, "achievement:verify"), func(c *fiber.Ctx) error {
-		return servicepostgre.RejectAchievementService(c, postgresDB)
+		return servicepostgre.RejectAchievementService(c, postgresDB, mongoDB)
 	})
 
 	achievements.Get("/:id/history", middlewarepostgre.PermissionRequired(postgresDB, "achievement:read"), func(c *fiber.Ctx) error {
