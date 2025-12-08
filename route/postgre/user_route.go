@@ -8,30 +8,31 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func UserRoutes(app *fiber.App, db *sql.DB, instanceID string) {
-	app.Get("/api/v1/health", func(c *fiber.Ctx) error {
-		c.Locals("server_instance_id", instanceID)
-		return servicepostgre.HealthCheckService(c)
+func UserRoutes(app *fiber.App, db *sql.DB) {
+	users := app.Group("/api/v1/users", middlewarepostgre.AuthRequired())
+
+	users.Get("", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
+		return servicepostgre.GetAllUsersService(c, db)
 	})
 
-	auth := app.Group("/api/v1/auth")
-
-	auth.Post("/login", func(c *fiber.Ctx) error {
-		return servicepostgre.LoginService(c, db)
+	users.Get("/:id", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
+		return servicepostgre.GetUserByIDService(c, db)
 	})
 
-	auth.Post("/refresh", func(c *fiber.Ctx) error {
-		return servicepostgre.RefreshTokenService(c, db)
+	users.Post("", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
+		return servicepostgre.CreateUserService(c, db)
 	})
 
-	protected := auth.Group("", middlewarepostgre.AuthRequired())
-
-	protected.Post("/logout", func(c *fiber.Ctx) error {
-		return servicepostgre.LogoutService(c, db)
+	users.Put("/:id", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
+		return servicepostgre.UpdateUserService(c, db)
 	})
 
-	protected.Get("/profile", func(c *fiber.Ctx) error {
-		return servicepostgre.GetProfileService(c, db)
+	users.Delete("/:id", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
+		return servicepostgre.DeleteUserService(c, db)
+	})
+
+	users.Put("/:id/role", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
+		return servicepostgre.UpdateUserRoleService(c, db)
 	})
 }
 

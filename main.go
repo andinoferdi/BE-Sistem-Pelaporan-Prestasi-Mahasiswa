@@ -32,8 +32,12 @@ func main() {
 	app := configmongo.NewApp()
 	app.Use(middleware.LoggerMiddleware)
 
-	routepostgre.UserRoutes(app, postgresDB, serverInstanceID)
+	routepostgre.AuthRoutes(app, postgresDB, serverInstanceID)
+	routepostgre.UserRoutes(app, postgresDB)
 	routepostgre.AchievementRoutes(app, postgresDB, mongoDB)
+	routepostgre.StudentRoutes(app, postgresDB, mongoDB)
+	routepostgre.LecturerRoutes(app, postgresDB)
+	routepostgre.ReportRoutes(app, postgresDB)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {

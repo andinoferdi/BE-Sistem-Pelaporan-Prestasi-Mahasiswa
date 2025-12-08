@@ -35,8 +35,10 @@ type UpdateAchievementReferenceRequest struct {
 }
 
 type VerifyAchievementRequest struct {
-	Status        string `json:"status" validate:"required"`
-	RejectionNote string `json:"rejection_note"`
+}
+
+type RejectAchievementRequest struct {
+	RejectionNote string `json:"rejection_note" validate:"required"`
 }
 
 type GetAllAchievementReferencesResponse struct {
@@ -61,5 +63,15 @@ type UpdateAchievementReferenceResponse struct {
 
 type DeleteAchievementReferenceResponse struct {
 	Status string `json:"status"`
+}
+
+type VerifyAchievementResponse struct {
+	Status string               `json:"status"`
+	Data   AchievementReference `json:"data"`
+}
+
+type RejectAchievementResponse struct {
+	Status string               `json:"status"`
+	Data   AchievementReference `json:"data"`
 }
 

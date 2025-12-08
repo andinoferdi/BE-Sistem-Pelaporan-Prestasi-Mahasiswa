@@ -180,3 +180,32 @@ func GetAchievementsByIDs(db *mongo.Database, ids []string) ([]model.Achievement
 	return achievements, nil
 }
 
+func AddAttachmentToAchievement(db *mongo.Database, id string, attachment model.Attachment) (*model.Achievement, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, err
+	}
+
+	collection := db.Collection("achievements")
+
+	_, err = collection.UpdateOne(
+		ctx,
+		bson.M{
+			"_id":      objectID,
+			"deletedAt": bson.M{"$exists": false},
+		},
+		bson.M{
+			"$push": bson.M{"attachments": attachment},
+			"$set":  bson.M{"updatedAt": time.Now()},
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return GetAchievementByID(db, id)
+}
+

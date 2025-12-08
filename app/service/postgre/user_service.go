@@ -168,20 +168,44 @@ func GetProfileService(c *fiber.Ctx, db *sql.DB) error {
 		})
 	}
 
+	roleName, err := repository.GetRoleName(db, user.RoleID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "error",
+			"data": fiber.Map{
+				"message": "Error mengambil role name. Detail: " + err.Error(),
+			},
+		})
+	}
+
+	permissions, err := repository.GetUserPermissions(db, user.ID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "error",
+			"data": fiber.Map{
+				"message": "Error mengambil permissions. Detail: " + err.Error(),
+			},
+		})
+	}
+
 	response := model.GetProfileResponse{
 		Status: "success",
 		Data: struct {
-			UserID   string `json:"user_id"`
-			Username string `json:"username"`
-			Email    string `json:"email"`
-			FullName string `json:"full_name"`
-			RoleID   string `json:"role_id"`
+			UserID     string   `json:"user_id"`
+			Username   string   `json:"username"`
+			Email      string   `json:"email"`
+			FullName   string   `json:"full_name"`
+			RoleID     string   `json:"role_id"`
+			Role       string   `json:"role"`
+			Permissions []string `json:"permissions"`
 		}{
-			UserID:   user.ID,
-			Username: user.Username,
-			Email:    user.Email,
-			FullName: user.FullName,
-			RoleID:   user.RoleID,
+			UserID:     user.ID,
+			Username:   user.Username,
+			Email:      user.Email,
+			FullName:   user.FullName,
+			RoleID:     user.RoleID,
+			Role:       roleName,
+			Permissions: permissions,
 		},
 	}
 
@@ -351,5 +375,59 @@ func HealthCheckService(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(response)
+}
+
+func GetAllUsersService(c *fiber.Ctx, db *sql.DB) error {
+	return c.Status(501).JSON(fiber.Map{
+		"status": "error",
+		"data": fiber.Map{
+			"message": "Fitur ini belum diimplementasikan.",
+		},
+	})
+}
+
+func GetUserByIDService(c *fiber.Ctx, db *sql.DB) error {
+	return c.Status(501).JSON(fiber.Map{
+		"status": "error",
+		"data": fiber.Map{
+			"message": "Fitur ini belum diimplementasikan.",
+		},
+	})
+}
+
+func CreateUserService(c *fiber.Ctx, db *sql.DB) error {
+	return c.Status(501).JSON(fiber.Map{
+		"status": "error",
+		"data": fiber.Map{
+			"message": "Fitur ini belum diimplementasikan.",
+		},
+	})
+}
+
+func UpdateUserService(c *fiber.Ctx, db *sql.DB) error {
+	return c.Status(501).JSON(fiber.Map{
+		"status": "error",
+		"data": fiber.Map{
+			"message": "Fitur ini belum diimplementasikan.",
+		},
+	})
+}
+
+func DeleteUserService(c *fiber.Ctx, db *sql.DB) error {
+	return c.Status(501).JSON(fiber.Map{
+		"status": "error",
+		"data": fiber.Map{
+			"message": "Fitur ini belum diimplementasikan.",
+		},
+	})
+}
+
+func UpdateUserRoleService(c *fiber.Ctx, db *sql.DB) error {
+	return c.Status(501).JSON(fiber.Map{
+		"status": "error",
+		"data": fiber.Map{
+			"message": "Fitur ini belum diimplementasikan.",
+		},
+	})
 }
 

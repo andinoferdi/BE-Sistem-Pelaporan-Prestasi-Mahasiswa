@@ -29,10 +29,12 @@ type RefreshTokenRequest struct {
 type GetProfileResponse struct {
 	Status string `json:"status"`
 	Data   struct {
-		UserID   string `json:"user_id"`
-		Username string `json:"username"`
-		Email    string `json:"email"`
-		FullName string `json:"full_name"`
-		RoleID   string `json:"role_id"`
+		UserID     string   `json:"user_id"`
+		Username   string   `json:"username"`
+		Email      string   `json:"email"`
+		FullName   string   `json:"full_name"`
+		RoleID     string   `json:"role_id"`
+		Role       string   `json:"role"`
+		Permissions []string `json:"permissions"`
 	} `json:"data"`
 }
