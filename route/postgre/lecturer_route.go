@@ -8,15 +8,20 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func LecturerRoutes(app *fiber.App, postgresDB *sql.DB) {
+func LecturerRoutes(app *fiber.App, lecturerService servicepostgre.ILecturerService, db *sql.DB) {
 	lecturers := app.Group("/api/v1/lecturers", middlewarepostgre.AuthRequired())
 
-	lecturers.Get("", middlewarepostgre.PermissionRequired(postgresDB, "user:manage"), func(c *fiber.Ctx) error {
-		return servicepostgre.GetAllLecturersService(c, postgresDB)
+	lecturers.Get("", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
+		return c.Status(501).JSON(fiber.Map{
+			"error":   "Fitur belum diimplementasikan",
+			"message": "Fitur ini belum diimplementasikan.",
+		})
 	})
 
-	lecturers.Get("/:id/advisees", middlewarepostgre.PermissionRequired(postgresDB, "user:manage"), func(c *fiber.Ctx) error {
-		return servicepostgre.GetLecturerAdviseesService(c, postgresDB)
+	lecturers.Get("/:id/advisees", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
+		return c.Status(501).JSON(fiber.Map{
+			"error":   "Fitur belum diimplementasikan",
+			"message": "Fitur ini belum diimplementasikan.",
+		})
 	})
 }
-

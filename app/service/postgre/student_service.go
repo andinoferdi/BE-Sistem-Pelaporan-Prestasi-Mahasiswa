@@ -1,44 +1,37 @@
 package service
 
 import (
-	"database/sql"
-
-	"github.com/gofiber/fiber/v2"
+	"context"
+	"errors"
+	modelpostgre "sistem-pelaporan-prestasi-mahasiswa/app/model/postgre"
+	repositorypostgre "sistem-pelaporan-prestasi-mahasiswa/app/repository/postgre"
 )
 
-func GetAllStudentsService(c *fiber.Ctx, db *sql.DB) error {
-	return c.Status(501).JSON(fiber.Map{
-		"status": "error",
-		"data": fiber.Map{
-			"message": "Fitur ini belum diimplementasikan.",
-		},
-	})
+type IStudentService interface {
+	GetStudentIDByUserID(ctx context.Context, userID string) (string, error)
+	GetStudentByUserID(ctx context.Context, userID string) (*modelpostgre.Student, error)
+	GetStudentsByAdvisorID(ctx context.Context, advisorID string) ([]modelpostgre.Student, error)
 }
 
-func GetStudentByIDService(c *fiber.Ctx, db *sql.DB) error {
-	return c.Status(501).JSON(fiber.Map{
-		"status": "error",
-		"data": fiber.Map{
-			"message": "Fitur ini belum diimplementasikan.",
-		},
-	})
+type StudentService struct {
+	studentRepo repositorypostgre.IStudentRepository
 }
 
-func GetStudentAchievementsService(c *fiber.Ctx, postgresDB *sql.DB, mongoDB interface{}) error {
-	return c.Status(501).JSON(fiber.Map{
-		"status": "error",
-		"data": fiber.Map{
-			"message": "Fitur ini belum diimplementasikan.",
-		},
-	})
+func NewStudentService(studentRepo repositorypostgre.IStudentRepository) IStudentService {
+	return &StudentService{studentRepo: studentRepo}
 }
 
-func UpdateStudentAdvisorService(c *fiber.Ctx, db *sql.DB) error {
-	return c.Status(501).JSON(fiber.Map{
-		"status": "error",
-		"data": fiber.Map{
-			"message": "Fitur ini belum diimplementasikan.",
-		},
-	})
+func (s *StudentService) GetStudentIDByUserID(ctx context.Context, userID string) (string, error) {
+	return s.studentRepo.GetStudentIDByUserID(ctx, userID)
 }
 
+func (s *StudentService) GetStudentByUserID(ctx context.Context, userID string) (*modelpostgre.Student, error) {
+	return s.studentRepo.GetStudentByUserID(ctx, userID)
+}
+
+func (s *StudentService) GetStudentsByAdvisorID(ctx context.Context, advisorID string) ([]modelpostgre.Student, error) {
+	if advisorID == "" {
+		return nil, errors.New("advisor ID wajib diisi")
+	}
+	return s.studentRepo.GetStudentsByAdvisorID(ctx, advisorID)
+}

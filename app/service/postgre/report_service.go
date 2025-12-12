@@ -1,26 +1,26 @@
 package service
 
 import (
-	"database/sql"
-
-	"github.com/gofiber/fiber/v2"
+	"context"
+	"errors"
 )
 
-func GetStatisticsService(c *fiber.Ctx, db *sql.DB) error {
-	return c.Status(501).JSON(fiber.Map{
-		"status": "error",
-		"data": fiber.Map{
-			"message": "Fitur ini belum diimplementasikan.",
-		},
-	})
+type IReportService interface {
+	GetStatistics(ctx context.Context) (map[string]interface{}, error)
+	GetStudentReport(ctx context.Context, studentID string) (map[string]interface{}, error)
 }
 
-func GetStudentReportService(c *fiber.Ctx, db *sql.DB) error {
-	return c.Status(501).JSON(fiber.Map{
-		"status": "error",
-		"data": fiber.Map{
-			"message": "Fitur ini belum diimplementasikan.",
-		},
-	})
+type ReportService struct {
 }
 
+func NewReportService() IReportService {
+	return &ReportService{}
+}
+
+func (s *ReportService) GetStatistics(ctx context.Context) (map[string]interface{}, error) {
+	return nil, errors.New("fitur ini belum diimplementasikan")
+}
+
+func (s *ReportService) GetStudentReport(ctx context.Context, studentID string) (map[string]interface{}, error) {
+	return nil, errors.New("fitur ini belum diimplementasikan")
+}

@@ -11,57 +11,67 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func CreateAchievement(db *mongo.Database, achievement model.Achievement) (*model.Achievement, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+type IAchievementRepository interface {
+	CreateAchievement(ctx context.Context, achievement *model.Achievement) (*model.Achievement, error)
+	GetAchievementByID(ctx context.Context, id string) (*model.Achievement, error)
+	UpdateAchievement(ctx context.Context, id string, req model.UpdateAchievementRequest) (*model.Achievement, error)
+	DeleteAchievement(ctx context.Context, id string) error
+	GetAchievementsByStudentID(ctx context.Context, studentID string) ([]model.Achievement, error)
+	GetAchievementsByIDs(ctx context.Context, ids []string) ([]model.Achievement, error)
+	AddAttachmentToAchievement(ctx context.Context, id string, attachment model.Attachment) (*model.Achievement, error)
+}
 
-	collection := db.Collection("achievements")
+type AchievementRepository struct {
+	collection *mongo.Collection
+}
 
+func NewAchievementRepository(db *mongo.Database) IAchievementRepository {
+	return &AchievementRepository{
+		collection: db.Collection("achievements"),
+	}
+}
+
+func (r *AchievementRepository) CreateAchievement(ctx context.Context, achievement *model.Achievement) (*model.Achievement, error) {
+	achievement.ID = primitive.NilObjectID
 	achievement.CreatedAt = time.Now()
 	achievement.UpdatedAt = time.Now()
 
-	result, err := collection.InsertOne(ctx, achievement)
+	result, err := r.collection.InsertOne(ctx, achievement)
 	if err != nil {
 		return nil, err
 	}
 
 	achievement.ID = result.InsertedID.(primitive.ObjectID)
-	return &achievement, nil
+	return achievement, nil
 }
 
-func GetAchievementByID(db *mongo.Database, id string) (*model.Achievement, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
+func (r *AchievementRepository) GetAchievementByID(ctx context.Context, id string) (*model.Achievement, error) {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, err
 	}
 
-	collection := db.Collection("achievements")
 	var achievement model.Achievement
-
-	err = collection.FindOne(ctx, bson.M{
+	filter := bson.M{
 		"_id":      objectID,
 		"deletedAt": bson.M{"$exists": false},
-	}).Decode(&achievement)
+	}
+	err = r.collection.FindOne(ctx, filter).Decode(&achievement)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
 		return nil, err
 	}
 
 	return &achievement, nil
 }
 
-func UpdateAchievement(db *mongo.Database, id string, req model.UpdateAchievementRequest) (*model.Achievement, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
+func (r *AchievementRepository) UpdateAchievement(ctx context.Context, id string, req model.UpdateAchievementRequest) (*model.Achievement, error) {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, err
 	}
-
-	collection := db.Collection("achievements")
 
 	update := bson.M{
 		"updatedAt": time.Now(),
@@ -89,7 +99,7 @@ func UpdateAchievement(db *mongo.Database, id string, req model.UpdateAchievemen
 		update["points"] = *req.Points
 	}
 
-	_, err = collection.UpdateOne(
+	_, err = r.collection.UpdateOne(
 		ctx,
 		bson.M{"_id": objectID},
 		bson.M{"$set": update},
@@ -98,21 +108,17 @@ func UpdateAchievement(db *mongo.Database, id string, req model.UpdateAchievemen
 		return nil, err
 	}
 
-	return GetAchievementByID(db, id)
+	return r.GetAchievementByID(ctx, id)
 }
 
-func DeleteAchievement(db *mongo.Database, id string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
+func (r *AchievementRepository) DeleteAchievement(ctx context.Context, id string) error {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return err
 	}
 
-	collection := db.Collection("achievements")
 	now := time.Now()
-	_, err = collection.UpdateOne(
+	_, err = r.collection.UpdateOne(
 		ctx,
 		bson.M{"_id": objectID},
 		bson.M{"$set": bson.M{
@@ -123,12 +129,8 @@ func DeleteAchievement(db *mongo.Database, id string) error {
 	return err
 }
 
-func GetAchievementsByStudentID(db *mongo.Database, studentID string) ([]model.Achievement, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	collection := db.Collection("achievements")
-	cursor, err := collection.Find(ctx, bson.M{
+func (r *AchievementRepository) GetAchievementsByStudentID(ctx context.Context, studentID string) ([]model.Achievement, error) {
+	cursor, err := r.collection.Find(ctx, bson.M{
 		"studentId": studentID,
 		"deletedAt": bson.M{"$exists": false},
 	})
@@ -145,10 +147,7 @@ func GetAchievementsByStudentID(db *mongo.Database, studentID string) ([]model.A
 	return achievements, nil
 }
 
-func GetAchievementsByIDs(db *mongo.Database, ids []string) ([]model.Achievement, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
+func (r *AchievementRepository) GetAchievementsByIDs(ctx context.Context, ids []string) ([]model.Achievement, error) {
 	var objectIDs []primitive.ObjectID
 	for _, id := range ids {
 		objectID, err := primitive.ObjectIDFromHex(id)
@@ -162,8 +161,7 @@ func GetAchievementsByIDs(db *mongo.Database, ids []string) ([]model.Achievement
 		return []model.Achievement{}, nil
 	}
 
-	collection := db.Collection("achievements")
-	cursor, err := collection.Find(ctx, bson.M{
+	cursor, err := r.collection.Find(ctx, bson.M{
 		"_id":      bson.M{"$in": objectIDs},
 		"deletedAt": bson.M{"$exists": false},
 	})
@@ -180,18 +178,13 @@ func GetAchievementsByIDs(db *mongo.Database, ids []string) ([]model.Achievement
 	return achievements, nil
 }
 
-func AddAttachmentToAchievement(db *mongo.Database, id string, attachment model.Attachment) (*model.Achievement, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
+func (r *AchievementRepository) AddAttachmentToAchievement(ctx context.Context, id string, attachment model.Attachment) (*model.Achievement, error) {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, err
 	}
 
-	collection := db.Collection("achievements")
-
-	_, err = collection.UpdateOne(
+	_, err = r.collection.UpdateOne(
 		ctx,
 		bson.M{
 			"_id":      objectID,
@@ -206,6 +199,5 @@ func AddAttachmentToAchievement(db *mongo.Database, id string, attachment model.
 		return nil, err
 	}
 
-	return GetAchievementByID(db, id)
+	return r.GetAchievementByID(ctx, id)
 }
-

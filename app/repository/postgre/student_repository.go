@@ -1,11 +1,27 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	model "sistem-pelaporan-prestasi-mahasiswa/app/model/postgre"
 )
 
-func GetStudentIDByUserID(db *sql.DB, userID string) (string, error) {
+type IStudentRepository interface {
+	GetStudentIDByUserID(ctx context.Context, userID string) (string, error)
+	GetStudentByUserID(ctx context.Context, userID string) (*model.Student, error)
+	GetStudentByID(ctx context.Context, id string) (*model.Student, error)
+	GetStudentsByAdvisorID(ctx context.Context, advisorID string) ([]model.Student, error)
+}
+
+type StudentRepository struct {
+	db *sql.DB
+}
+
+func NewStudentRepository(db *sql.DB) IStudentRepository {
+	return &StudentRepository{db: db}
+}
+
+func (r *StudentRepository) GetStudentIDByUserID(ctx context.Context, userID string) (string, error) {
 	query := `
 		SELECT s.id
 		FROM students s
@@ -13,7 +29,7 @@ func GetStudentIDByUserID(db *sql.DB, userID string) (string, error) {
 	`
 
 	var studentID string
-	err := db.QueryRow(query, userID).Scan(&studentID)
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&studentID)
 	if err != nil {
 		return "", err
 	}
@@ -21,7 +37,7 @@ func GetStudentIDByUserID(db *sql.DB, userID string) (string, error) {
 	return studentID, nil
 }
 
-func GetStudentByUserID(db *sql.DB, userID string) (*model.Student, error) {
+func (r *StudentRepository) GetStudentByUserID(ctx context.Context, userID string) (*model.Student, error) {
 	query := `
 		SELECT s.id, s.user_id, s.student_id, s.program_study, 
 		       s.academic_year, s.advisor_id, s.created_at
@@ -30,7 +46,7 @@ func GetStudentByUserID(db *sql.DB, userID string) (*model.Student, error) {
 	`
 
 	student := new(model.Student)
-	err := db.QueryRow(query, userID).Scan(
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(
 		&student.ID, &student.UserID, &student.StudentID,
 		&student.ProgramStudy, &student.AcademicYear, &student.AdvisorID,
 		&student.CreatedAt,
@@ -43,7 +59,29 @@ func GetStudentByUserID(db *sql.DB, userID string) (*model.Student, error) {
 	return student, nil
 }
 
-func GetStudentsByAdvisorID(db *sql.DB, advisorID string) ([]model.Student, error) {
+func (r *StudentRepository) GetStudentByID(ctx context.Context, id string) (*model.Student, error) {
+	query := `
+		SELECT s.id, s.user_id, s.student_id, s.program_study, 
+		       s.academic_year, s.advisor_id, s.created_at
+		FROM students s
+		WHERE s.id = $1
+	`
+
+	student := new(model.Student)
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&student.ID, &student.UserID, &student.StudentID,
+		&student.ProgramStudy, &student.AcademicYear, &student.AdvisorID,
+		&student.CreatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return student, nil
+}
+
+func (r *StudentRepository) GetStudentsByAdvisorID(ctx context.Context, advisorID string) ([]model.Student, error) {
 	query := `
 		SELECT s.id, s.user_id, s.student_id, s.program_study, 
 		       s.academic_year, s.advisor_id, s.created_at
@@ -52,7 +90,7 @@ func GetStudentsByAdvisorID(db *sql.DB, advisorID string) ([]model.Student, erro
 		ORDER BY s.created_at DESC
 	`
 
-	rows, err := db.Query(query, advisorID)
+	rows, err := r.db.QueryContext(ctx, query, advisorID)
 	if err != nil {
 		return nil, err
 	}
@@ -78,4 +116,3 @@ func GetStudentsByAdvisorID(db *sql.DB, advisorID string) ([]model.Student, erro
 
 	return students, nil
 }
-

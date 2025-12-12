@@ -12,30 +12,24 @@ func AuthRequired() fiber.Handler {
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"status": "error",
-				"data": fiber.Map{
-					"message": "Token akses diperlukan. Tambahkan header 'Authorization: Bearer YOUR_TOKEN'.",
-				},
+				"error":   "Tidak diizinkan",
+				"message": "Token akses diperlukan. Tambahkan header 'Authorization: Bearer YOUR_TOKEN'.",
 			})
 		}
 
 		tokenString := utilspostgre.ExtractTokenFromHeader(authHeader)
 		if tokenString == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"status": "error",
-				"data": fiber.Map{
-					"message": "Format token tidak valid. Gunakan format 'Bearer YOUR_TOKEN'.",
-				},
+				"error":   "Tidak diizinkan",
+				"message": "Format token tidak valid. Gunakan format 'Bearer YOUR_TOKEN'.",
 			})
 		}
 
 		claims, err := utilspostgre.ValidateToken(tokenString)
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"status": "error",
-				"data": fiber.Map{
-					"message": "Token tidak valid atau sudah expired. Silakan login ulang untuk mendapatkan token baru.",
-				},
+				"error":   "Tidak diizinkan",
+				"message": "Token tidak valid atau sudah expired. Silakan login ulang untuk mendapatkan token baru.",
 			})
 		}
 
@@ -52,10 +46,8 @@ func RoleRequired(allowedRoles ...string) fiber.Handler {
 		roleID, ok := c.Locals("role_id").(string)
 		if !ok {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"status": "error",
-				"data": fiber.Map{
-					"message": "Role tidak ditemukan. Silakan login ulang.",
-				},
+				"error":   "Tidak diizinkan",
+				"message": "Role tidak ditemukan. Silakan login ulang.",
 			})
 		}
 
@@ -66,10 +58,8 @@ func RoleRequired(allowedRoles ...string) fiber.Handler {
 		}
 
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Akses ditolak. Anda tidak memiliki permission untuk mengakses endpoint ini.",
-			},
+			"error":   "Akses ditolak",
+			"message": "Akses ditolak. Anda tidak memiliki permission untuk mengakses endpoint ini.",
 		})
 	}
 }
@@ -79,29 +69,23 @@ func PermissionRequired(db *sql.DB, permission string) fiber.Handler {
 		userID, ok := c.Locals("user_id").(string)
 		if !ok {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"status": "error",
-				"data": fiber.Map{
-					"message": "User ID tidak ditemukan. Silakan login ulang.",
-				},
+				"error":   "Tidak diizinkan",
+				"message": "User ID tidak ditemukan. Silakan login ulang.",
 			})
 		}
 
 		hasPermission, err := utilspostgre.CheckUserPermission(db, userID, permission)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"status": "error",
-				"data": fiber.Map{
-					"message": "Gagal memeriksa permission: " + err.Error(),
-				},
+				"error":   "Gagal mengambil data",
+				"message": "Gagal memeriksa permission: " + err.Error(),
 			})
 		}
 
 		if !hasPermission {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"status": "error",
-				"data": fiber.Map{
-					"message": "Akses ditolak. Anda tidak memiliki permission '" + permission + "'.",
-				},
+				"error":   "Akses ditolak",
+				"message": "Akses ditolak. Anda tidak memiliki permission '" + permission + "'.",
 			})
 		}
 

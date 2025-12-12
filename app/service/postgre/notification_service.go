@@ -1,39 +1,58 @@
 package service
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	modelpostgre "sistem-pelaporan-prestasi-mahasiswa/app/model/postgre"
 	repositorymongo "sistem-pelaporan-prestasi-mahasiswa/app/repository/mongo"
 	repositorypostgre "sistem-pelaporan-prestasi-mahasiswa/app/repository/postgre"
-	"sistem-pelaporan-prestasi-mahasiswa/helper"
-
-	"github.com/gofiber/fiber/v2"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func GetNotificationsService(c *fiber.Ctx, postgresDB *sql.DB) error {
-	userID, ok := c.Locals("user_id").(string)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "User ID tidak ditemukan. Silakan login ulang.",
-			},
-		})
+type INotificationService interface {
+	GetNotifications(ctx context.Context, userID string, page, limit int) (*modelpostgre.GetNotificationsResponse, error)
+	GetUnreadCount(ctx context.Context, userID string) (*modelpostgre.GetUnreadCountResponse, error)
+	MarkAsRead(ctx context.Context, notificationID string, userID string) (*modelpostgre.MarkAsReadResponse, error)
+	MarkAllAsRead(ctx context.Context, userID string) (*modelpostgre.MarkAllAsReadResponse, error)
+	CreateAchievementNotification(ctx context.Context, studentUserID string, mongoAchievementID string, achievementRefID string, rejectionNote string) error
+	CreateSubmissionNotification(ctx context.Context, studentID string, mongoAchievementID string, achievementRefID string) error
+}
+
+type NotificationService struct {
+	notifRepo repositorypostgre.INotificationRepository
+	studentRepo repositorypostgre.IStudentRepository
+	userRepo repositorypostgre.IUserRepository
+	achievementRepo repositorymongo.IAchievementRepository
+}
+
+func NewNotificationService(
+	notifRepo repositorypostgre.INotificationRepository,
+	studentRepo repositorypostgre.IStudentRepository,
+	userRepo repositorypostgre.IUserRepository,
+	achievementRepo repositorymongo.IAchievementRepository,
+) INotificationService {
+	return &NotificationService{
+		notifRepo:      notifRepo,
+		studentRepo:    studentRepo,
+		userRepo:       userRepo,
+		achievementRepo: achievementRepo,
+	}
+}
+
+func (s *NotificationService) GetNotifications(ctx context.Context, userID string, page, limit int) (*modelpostgre.GetNotificationsResponse, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
 	}
 
-	page := helper.GetQueryInt(c, "page", 1)
-	limit := helper.GetQueryInt(c, "limit", 10)
-	page, limit = helper.ValidatePagination(page, limit)
-
-	notifications, total, err := repositorypostgre.GetNotificationsByUserIDPaginated(postgresDB, userID, page, limit)
+	notifications, total, err := s.notifRepo.GetNotificationsByUserIDPaginated(ctx, userID, page, limit)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error mengambil notifications. Detail: " + err.Error(),
-			},
-		})
+		return nil, err
 	}
 
 	totalPages := 0
@@ -41,7 +60,7 @@ func GetNotificationsService(c *fiber.Ctx, postgresDB *sql.DB) error {
 		totalPages = (total + limit - 1) / limit
 	}
 
-	response := modelpostgre.GetNotificationsResponse{
+	response := &modelpostgre.GetNotificationsResponse{
 		Status: "success",
 		Data:   notifications,
 	}
@@ -50,156 +69,82 @@ func GetNotificationsService(c *fiber.Ctx, postgresDB *sql.DB) error {
 	response.Pagination.Total = total
 	response.Pagination.TotalPages = totalPages
 
-	return c.Status(fiber.StatusOK).JSON(response)
+	return response, nil
 }
 
-func GetUnreadCountService(c *fiber.Ctx, postgresDB *sql.DB) error {
-	userID, ok := c.Locals("user_id").(string)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "User ID tidak ditemukan. Silakan login ulang.",
-			},
-		})
-	}
-
-	count, err := repositorypostgre.GetUnreadCountByUserID(postgresDB, userID)
+func (s *NotificationService) GetUnreadCount(ctx context.Context, userID string) (*modelpostgre.GetUnreadCountResponse, error) {
+	count, err := s.notifRepo.GetUnreadCountByUserID(ctx, userID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error mengambil unread count. Detail: " + err.Error(),
-			},
-		})
+		return nil, err
 	}
 
-	response := modelpostgre.GetUnreadCountResponse{
+	response := &modelpostgre.GetUnreadCountResponse{
 		Status: "success",
 	}
 	response.Data.Count = count
 
-	return c.Status(fiber.StatusOK).JSON(response)
+	return response, nil
 }
 
-func MarkAsReadService(c *fiber.Ctx, postgresDB *sql.DB) error {
-	userID, ok := c.Locals("user_id").(string)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "User ID tidak ditemukan. Silakan login ulang.",
-			},
-		})
-	}
-
-	notificationID := c.Params("id")
+func (s *NotificationService) MarkAsRead(ctx context.Context, notificationID string, userID string) (*modelpostgre.MarkAsReadResponse, error) {
 	if notificationID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "ID notification wajib diisi.",
-			},
-		})
+		return nil, errors.New("ID notification wajib diisi")
 	}
 
-	err := repositorypostgre.MarkAsRead(postgresDB, notificationID, userID)
+	err := s.notifRepo.MarkAsRead(ctx, notificationID, userID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"status": "error",
-				"data": fiber.Map{
-					"message": "Notifikasi tidak ditemukan atau bukan milik Anda.",
-				},
-			})
+			return nil, errors.New("notifikasi tidak ditemukan atau bukan milik Anda")
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error menandai notification sebagai read. Detail: " + err.Error(),
-			},
-		})
+		return nil, err
 	}
 
-	var notification modelpostgre.Notification
-	query := `SELECT id, user_id, type, title, message, achievement_id, mongo_achievement_id, is_read, read_at, created_at, updated_at FROM notifications WHERE id = $1 AND user_id = $2`
-	var achievementID sql.NullString
-	var mongoAchievementID sql.NullString
-	var readAt sql.NullTime
-	err = postgresDB.QueryRow(query, notificationID, userID).Scan(
-		&notification.ID, &notification.UserID, &notification.Type, &notification.Title, &notification.Message,
-		&achievementID, &mongoAchievementID, &notification.IsRead, &readAt, &notification.CreatedAt, &notification.UpdatedAt,
-	)
+	notifications, _, err := s.notifRepo.GetNotificationsByUserIDPaginated(ctx, userID, 1, 1000)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"status": "error",
-				"data": fiber.Map{
-					"message": "Notifikasi tidak ditemukan atau bukan milik Anda.",
-				},
-			})
+		return nil, err
+	}
+
+	var notification *modelpostgre.Notification
+	for i := range notifications {
+		if notifications[i].ID == notificationID {
+			notification = &notifications[i]
+			break
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error mengambil notification. Detail: " + err.Error(),
-			},
-		})
 	}
 
-	if achievementID.Valid {
-		notification.AchievementID = &achievementID.String
+	if notification == nil {
+		return nil, errors.New("notifikasi tidak ditemukan")
 	}
 
-	if mongoAchievementID.Valid {
-		notification.MongoAchievementID = &mongoAchievementID.String
-	}
-
-	if readAt.Valid {
-		notification.ReadAt = &readAt.Time
-	}
-
-	response := modelpostgre.MarkAsReadResponse{
+	response := &modelpostgre.MarkAsReadResponse{
 		Status: "success",
-		Data:   notification,
+		Data:   *notification,
 	}
 
-	return c.Status(fiber.StatusOK).JSON(response)
+	return response, nil
 }
 
-func MarkAllAsReadService(c *fiber.Ctx, postgresDB *sql.DB) error {
-	userID, ok := c.Locals("user_id").(string)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "User ID tidak ditemukan. Silakan login ulang.",
-			},
-		})
-	}
-
-	err := repositorypostgre.MarkAllAsRead(postgresDB, userID)
+func (s *NotificationService) MarkAllAsRead(ctx context.Context, userID string) (*modelpostgre.MarkAllAsReadResponse, error) {
+	err := s.notifRepo.MarkAllAsRead(ctx, userID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error menandai semua notification sebagai read. Detail: " + err.Error(),
-			},
-		})
+		return nil, err
 	}
 
-	response := modelpostgre.MarkAllAsReadResponse{
+	response := &modelpostgre.MarkAllAsReadResponse{
 		Status: "success",
 	}
 	response.Data.Message = "Semua notification telah ditandai sebagai read"
 
-	return c.Status(fiber.StatusOK).JSON(response)
+	return response, nil
 }
 
-func CreateAchievementNotification(postgresDB *sql.DB, mongoDB *mongo.Database, studentUserID string, mongoAchievementID string, achievementRefID string, rejectionNote string) error {
-	achievement, err := repositorymongo.GetAchievementByID(mongoDB, mongoAchievementID)
+func (s *NotificationService) CreateAchievementNotification(ctx context.Context, studentUserID string, mongoAchievementID string, achievementRefID string, rejectionNote string) error {
+	achievement, err := s.achievementRepo.GetAchievementByID(ctx, mongoAchievementID)
 	if err != nil {
 		return err
+	}
+	if achievement == nil {
+		return errors.New("prestasi tidak ditemukan")
 	}
 
 	title := achievement.Title
@@ -218,18 +163,12 @@ func CreateAchievementNotification(postgresDB *sql.DB, mongoDB *mongo.Database, 
 		MongoAchievementID: &mongoAchievementID,
 	}
 
-	_, err = repositorypostgre.CreateNotification(postgresDB, req)
+	_, err = s.notifRepo.CreateNotification(ctx, req)
 	return err
 }
 
-func CreateSubmissionNotification(postgresDB *sql.DB, mongoDB *mongo.Database, studentID string, mongoAchievementID string, achievementRefID string) error {
-	var student modelpostgre.Student
-	query := `SELECT id, user_id, student_id, program_study, academic_year, advisor_id, created_at FROM students WHERE id = $1`
-	err := postgresDB.QueryRow(query, studentID).Scan(
-		&student.ID, &student.UserID, &student.StudentID,
-		&student.ProgramStudy, &student.AcademicYear, &student.AdvisorID,
-		&student.CreatedAt,
-	)
+func (s *NotificationService) CreateSubmissionNotification(ctx context.Context, studentID string, mongoAchievementID string, achievementRefID string) error {
+	student, err := s.studentRepo.GetStudentByID(ctx, studentID)
 	if err != nil {
 		return err
 	}
@@ -238,19 +177,17 @@ func CreateSubmissionNotification(postgresDB *sql.DB, mongoDB *mongo.Database, s
 		return nil
 	}
 
-	var lecturer modelpostgre.Lecturer
-	lecturerQuery := `SELECT id, user_id, lecturer_id, department, created_at FROM lecturers WHERE id = $1`
-	err = postgresDB.QueryRow(lecturerQuery, student.AdvisorID).Scan(
-		&lecturer.ID, &lecturer.UserID, &lecturer.LecturerID,
-		&lecturer.Department, &lecturer.CreatedAt,
-	)
+	lecturer, err := s.userRepo.GetLecturerByID(ctx, student.AdvisorID)
 	if err != nil {
 		return err
 	}
 
-	achievement, err := repositorymongo.GetAchievementByID(mongoDB, mongoAchievementID)
+	achievement, err := s.achievementRepo.GetAchievementByID(ctx, mongoAchievementID)
 	if err != nil {
 		return err
+	}
+	if achievement == nil {
+		return errors.New("prestasi tidak ditemukan")
 	}
 
 	title := achievement.Title
@@ -269,7 +206,6 @@ func CreateSubmissionNotification(postgresDB *sql.DB, mongoDB *mongo.Database, s
 		MongoAchievementID: &mongoAchievementID,
 	}
 
-	_, err = repositorypostgre.CreateNotification(postgresDB, req)
+	_, err = s.notifRepo.CreateNotification(ctx, req)
 	return err
 }
-

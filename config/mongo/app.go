@@ -10,7 +10,7 @@ func NewApp() *fiber.App {
 		BodyLimit: 10 * 1024 * 1024,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return c.Status(500).JSON(fiber.Map{
-				"success": false,
+				"error":   "Gagal mengambil data",
 				"message": "Internal server error: " + err.Error(),
 			})
 		},

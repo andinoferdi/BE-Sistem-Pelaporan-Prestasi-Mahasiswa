@@ -1,11 +1,28 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	model "sistem-pelaporan-prestasi-mahasiswa/app/model/postgre"
 )
 
-func CreateNotification(db *sql.DB, req model.CreateNotificationRequest) (*model.Notification, error) {
+type INotificationRepository interface {
+	CreateNotification(ctx context.Context, req model.CreateNotificationRequest) (*model.Notification, error)
+	GetNotificationsByUserIDPaginated(ctx context.Context, userID string, page, limit int) ([]model.Notification, int, error)
+	GetUnreadCountByUserID(ctx context.Context, userID string) (int, error)
+	MarkAsRead(ctx context.Context, notificationID string, userID string) error
+	MarkAllAsRead(ctx context.Context, userID string) error
+}
+
+type NotificationRepository struct {
+	db *sql.DB
+}
+
+func NewNotificationRepository(db *sql.DB) INotificationRepository {
+	return &NotificationRepository{db: db}
+}
+
+func (r *NotificationRepository) CreateNotification(ctx context.Context, req model.CreateNotificationRequest) (*model.Notification, error) {
 	query := `
 		INSERT INTO notifications (user_id, type, title, message, achievement_id, mongo_achievement_id, is_read, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, false, NOW(), NOW())
@@ -17,7 +34,7 @@ func CreateNotification(db *sql.DB, req model.CreateNotificationRequest) (*model
 	var mongoAchievementID sql.NullString
 	var readAt sql.NullTime
 
-	err := db.QueryRow(query, req.UserID, req.Type, req.Title, req.Message, req.AchievementID, req.MongoAchievementID).Scan(
+	err := r.db.QueryRowContext(ctx, query, req.UserID, req.Type, req.Title, req.Message, req.AchievementID, req.MongoAchievementID).Scan(
 		&notif.ID, &notif.UserID, &notif.Type, &notif.Title, &notif.Message,
 		&achievementID, &mongoAchievementID, &notif.IsRead, &readAt, &notif.CreatedAt, &notif.UpdatedAt,
 	)
@@ -41,7 +58,7 @@ func CreateNotification(db *sql.DB, req model.CreateNotificationRequest) (*model
 	return notif, nil
 }
 
-func GetNotificationsByUserIDPaginated(db *sql.DB, userID string, page, limit int) ([]model.Notification, int, error) {
+func (r *NotificationRepository) GetNotificationsByUserIDPaginated(ctx context.Context, userID string, page, limit int) ([]model.Notification, int, error) {
 	offset := (page - 1) * limit
 
 	countQuery := `
@@ -50,7 +67,7 @@ func GetNotificationsByUserIDPaginated(db *sql.DB, userID string, page, limit in
 		WHERE user_id = $1
 	`
 	var total int
-	err := db.QueryRow(countQuery, userID).Scan(&total)
+	err := r.db.QueryRowContext(ctx, countQuery, userID).Scan(&total)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -63,7 +80,7 @@ func GetNotificationsByUserIDPaginated(db *sql.DB, userID string, page, limit in
 		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := db.Query(query, userID, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -106,7 +123,7 @@ func GetNotificationsByUserIDPaginated(db *sql.DB, userID string, page, limit in
 	return notifications, total, nil
 }
 
-func GetUnreadCountByUserID(db *sql.DB, userID string) (int, error) {
+func (r *NotificationRepository) GetUnreadCountByUserID(ctx context.Context, userID string) (int, error) {
 	query := `
 		SELECT COUNT(*)
 		FROM notifications
@@ -114,7 +131,7 @@ func GetUnreadCountByUserID(db *sql.DB, userID string) (int, error) {
 	`
 
 	var count int
-	err := db.QueryRow(query, userID).Scan(&count)
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&count)
 	if err != nil {
 		return 0, err
 	}
@@ -122,14 +139,14 @@ func GetUnreadCountByUserID(db *sql.DB, userID string) (int, error) {
 	return count, nil
 }
 
-func MarkAsRead(db *sql.DB, notificationID string, userID string) error {
+func (r *NotificationRepository) MarkAsRead(ctx context.Context, notificationID string, userID string) error {
 	query := `
 		UPDATE notifications
 		SET is_read = true, read_at = NOW(), updated_at = NOW()
 		WHERE id = $1 AND user_id = $2
 	`
 
-	result, err := db.Exec(query, notificationID, userID)
+	result, err := r.db.ExecContext(ctx, query, notificationID, userID)
 	if err != nil {
 		return err
 	}
@@ -146,14 +163,13 @@ func MarkAsRead(db *sql.DB, notificationID string, userID string) error {
 	return nil
 }
 
-func MarkAllAsRead(db *sql.DB, userID string) error {
+func (r *NotificationRepository) MarkAllAsRead(ctx context.Context, userID string) error {
 	query := `
 		UPDATE notifications
 		SET is_read = true, read_at = NOW(), updated_at = NOW()
 		WHERE user_id = $1 AND is_read = false
 	`
 
-	_, err := db.Exec(query, userID)
+	_, err := r.db.ExecContext(ctx, query, userID)
 	return err
 }
-

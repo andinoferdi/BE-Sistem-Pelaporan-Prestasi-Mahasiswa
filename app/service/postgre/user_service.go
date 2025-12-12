@@ -1,433 +1,52 @@
 package service
 
 import (
-	"database/sql"
+	"context"
+	"errors"
 	model "sistem-pelaporan-prestasi-mahasiswa/app/model/postgre"
 	repository "sistem-pelaporan-prestasi-mahasiswa/app/repository/postgre"
-	utilspostgre "sistem-pelaporan-prestasi-mahasiswa/utils/postgre"
-	"time"
-
-	"github.com/gofiber/fiber/v2"
 )
 
-func LoginService(c *fiber.Ctx, db *sql.DB) error {
-	var req model.LoginRequest
-
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Format request body tidak valid. Pastikan JSON format benar. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	if req.Username == "" || req.Password == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Username dan password wajib diisi.",
-			},
-		})
-	}
-
-	user, err := repository.GetUserByUsernameOrEmail(db, req.Username)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"status": "error",
-				"data": fiber.Map{
-					"message": "Username atau password tidak valid.",
-				},
-			})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error mengambil data user dari database. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	if !user.IsActive {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Akun Anda tidak aktif. Silakan hubungi administrator.",
-			},
-		})
-	}
-
-	if !utilspostgre.CheckPassword(req.Password, user.PasswordHash) {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Username atau password tidak valid.",
-			},
-		})
-	}
-
-	token, err := utilspostgre.GenerateToken(*user)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error generating token. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	refreshToken, err := utilspostgre.GenerateRefreshToken(*user)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error generating refresh token. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	expiresAt := time.Now().Add(7 * 24 * time.Hour).Format(time.RFC3339)
-	if err := repository.SaveRefreshToken(db, user.ID, refreshToken, expiresAt); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error menyimpan refresh token. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	permissions, err := repository.GetUserPermissions(db, user.ID)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error mengambil permissions. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	roleName, err := repository.GetRoleName(db, user.RoleID)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error mengambil role name. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	response := model.LoginResponse{
-		Status: "success",
-		Data: struct {
-			Token        string           `json:"token"`
-			RefreshToken string           `json:"refreshToken"`
-			User         model.LoginUserResponse `json:"user"`
-		}{
-			Token:        token,
-			RefreshToken: refreshToken,
-			User: model.LoginUserResponse{
-				ID:          user.ID,
-				Username:    user.Username,
-				FullName:    user.FullName,
-				Role:        roleName,
-				Permissions: permissions,
-			},
-		},
-	}
-
-	return c.Status(fiber.StatusOK).JSON(response)
+type IUserService interface {
+	GetAllUsers(ctx context.Context) ([]model.User, error)
+	GetUserByID(ctx context.Context, id string) (*model.User, error)
+	CreateUser(ctx context.Context, req model.CreateUserRequest) (*model.User, error)
+	UpdateUser(ctx context.Context, id string, req model.UpdateUserRequest) (*model.User, error)
+	DeleteUser(ctx context.Context, id string) error
+	UpdateUserRole(ctx context.Context, id string, roleID string) error
 }
 
-func GetProfileService(c *fiber.Ctx, db *sql.DB) error {
-	userID, ok := c.Locals("user_id").(string)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "User ID tidak ditemukan. Silakan login ulang.",
-			},
-		})
-	}
-
-	user, err := repository.GetUserByID(db, userID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"status": "error",
-				"data": fiber.Map{
-					"message": "Data user tidak ditemukan di database.",
-				},
-			})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error mengambil data user dari database. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	roleName, err := repository.GetRoleName(db, user.RoleID)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error mengambil role name. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	permissions, err := repository.GetUserPermissions(db, user.ID)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error mengambil permissions. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	response := model.GetProfileResponse{
-		Status: "success",
-		Data: struct {
-			UserID     string   `json:"user_id"`
-			Username   string   `json:"username"`
-			Email      string   `json:"email"`
-			FullName   string   `json:"full_name"`
-			RoleID     string   `json:"role_id"`
-			Role       string   `json:"role"`
-			Permissions []string `json:"permissions"`
-		}{
-			UserID:     user.ID,
-			Username:   user.Username,
-			Email:      user.Email,
-			FullName:   user.FullName,
-			RoleID:     user.RoleID,
-			Role:       roleName,
-			Permissions: permissions,
-		},
-	}
-
-	return c.Status(fiber.StatusOK).JSON(response)
+type UserService struct {
+	userRepo repository.IUserRepository
 }
 
-func RefreshTokenService(c *fiber.Ctx, db *sql.DB) error {
-	var req model.RefreshTokenRequest
-
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Format request body tidak valid. Pastikan JSON format benar. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	if req.RefreshToken == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Refresh token wajib diisi.",
-			},
-		})
-	}
-
-	_, err := repository.GetRefreshToken(db, req.RefreshToken)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"status": "error",
-				"data": fiber.Map{
-					"message": "Refresh token tidak valid atau sudah expired.",
-				},
-			})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error mengambil refresh token dari database. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	claims, err := utilspostgre.ValidateRefreshToken(req.RefreshToken)
-	if err != nil {
-		repository.DeleteRefreshToken(db, req.RefreshToken)
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Refresh token tidak valid atau sudah expired.",
-			},
-		})
-	}
-
-	user, err := repository.GetUserByID(db, claims.UserID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"status": "error",
-				"data": fiber.Map{
-					"message": "Data user tidak ditemukan di database.",
-				},
-			})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error mengambil data user dari database. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	if !user.IsActive {
-		repository.DeleteRefreshToken(db, req.RefreshToken)
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Akun Anda tidak aktif. Silakan hubungi administrator.",
-			},
-		})
-	}
-
-	token, err := utilspostgre.GenerateToken(*user)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error generating token. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	refreshToken, err := utilspostgre.GenerateRefreshToken(*user)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error generating refresh token. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	repository.DeleteRefreshToken(db, req.RefreshToken)
-
-	expiresAt := time.Now().Add(7 * 24 * time.Hour).Format(time.RFC3339)
-	if err := repository.SaveRefreshToken(db, user.ID, refreshToken, expiresAt); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error menyimpan refresh token. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": "success",
-		"data": fiber.Map{
-			"token":        token,
-			"refreshToken": refreshToken,
-		},
-	})
+func NewUserService(userRepo repository.IUserRepository) IUserService {
+	return &UserService{userRepo: userRepo}
 }
 
-func LogoutService(c *fiber.Ctx, db *sql.DB) error {
-	userID, ok := c.Locals("user_id").(string)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "User ID tidak ditemukan. Silakan login ulang.",
-			},
-		})
+func (s *UserService) GetAllUsers(ctx context.Context) ([]model.User, error) {
+	return nil, errors.New("fitur ini belum diimplementasikan")
+}
+
+func (s *UserService) GetUserByID(ctx context.Context, id string) (*model.User, error) {
+	if id == "" {
+		return nil, errors.New("user ID wajib diisi")
 	}
-
-	if err := repository.DeleteUserRefreshTokens(db, userID); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Error menghapus refresh token. Detail: " + err.Error(),
-			},
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": "success",
-	})
+	return s.userRepo.FindUserByID(ctx, id)
 }
 
-func HealthCheckService(c *fiber.Ctx) error {
-	instanceID := c.Locals("server_instance_id")
-	if instanceID == nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"status": "error",
-			"data": fiber.Map{
-				"message": "Server instance ID tidak ditemukan.",
-			},
-		})
-	}
-
-	response := fiber.Map{
-		"status": "success",
-		"data": fiber.Map{
-			"instanceId": instanceID,
-		},
-	}
-
-	return c.Status(fiber.StatusOK).JSON(response)
+func (s *UserService) CreateUser(ctx context.Context, req model.CreateUserRequest) (*model.User, error) {
+	return nil, errors.New("fitur ini belum diimplementasikan")
 }
 
-func GetAllUsersService(c *fiber.Ctx, db *sql.DB) error {
-	return c.Status(501).JSON(fiber.Map{
-		"status": "error",
-		"data": fiber.Map{
-			"message": "Fitur ini belum diimplementasikan.",
-		},
-	})
+func (s *UserService) UpdateUser(ctx context.Context, id string, req model.UpdateUserRequest) (*model.User, error) {
+	return nil, errors.New("fitur ini belum diimplementasikan")
 }
 
-func GetUserByIDService(c *fiber.Ctx, db *sql.DB) error {
-	return c.Status(501).JSON(fiber.Map{
-		"status": "error",
-		"data": fiber.Map{
-			"message": "Fitur ini belum diimplementasikan.",
-		},
-	})
+func (s *UserService) DeleteUser(ctx context.Context, id string) error {
+	return errors.New("fitur ini belum diimplementasikan")
 }
 
-func CreateUserService(c *fiber.Ctx, db *sql.DB) error {
-	return c.Status(501).JSON(fiber.Map{
-		"status": "error",
-		"data": fiber.Map{
-			"message": "Fitur ini belum diimplementasikan.",
-		},
-	})
+func (s *UserService) UpdateUserRole(ctx context.Context, id string, roleID string) error {
+	return errors.New("fitur ini belum diimplementasikan")
 }
-
-func UpdateUserService(c *fiber.Ctx, db *sql.DB) error {
-	return c.Status(501).JSON(fiber.Map{
-		"status": "error",
-		"data": fiber.Map{
-			"message": "Fitur ini belum diimplementasikan.",
-		},
-	})
-}
-
-func DeleteUserService(c *fiber.Ctx, db *sql.DB) error {
-	return c.Status(501).JSON(fiber.Map{
-		"status": "error",
-		"data": fiber.Map{
-			"message": "Fitur ini belum diimplementasikan.",
-		},
-	})
-}
-
-func UpdateUserRoleService(c *fiber.Ctx, db *sql.DB) error {
-	return c.Status(501).JSON(fiber.Map{
-		"status": "error",
-		"data": fiber.Map{
-			"message": "Fitur ini belum diimplementasikan.",
-		},
-	})
-}
-
