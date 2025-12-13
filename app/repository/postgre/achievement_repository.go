@@ -22,6 +22,8 @@ type IAchievementReferenceRepository interface {
 	UpdateAchievementReferenceVerify(ctx context.Context, id string, verifiedBy string) error
 	UpdateAchievementReferenceReject(ctx context.Context, id string, verifiedBy string, rejectionNote string) error
 	GetAchievementStats(ctx context.Context) (int, int, error)
+	GetAchievementsByPeriod(ctx context.Context, startDate, endDate time.Time) (map[string]int, error)
+	GetAllAchievementMongoIDs(ctx context.Context) ([]string, error)
 }
 
 type AchievementReferenceRepository struct {
@@ -470,4 +472,69 @@ func (r *AchievementReferenceRepository) GetAchievementStats(ctx context.Context
 		return 0, 0, err
 	}
 	return total, verified, nil
+}
+
+func (r *AchievementReferenceRepository) GetAchievementsByPeriod(ctx context.Context, startDate, endDate time.Time) (map[string]int, error) {
+	query := `
+		SELECT 
+			TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') as period,
+			COUNT(*) as count
+		FROM achievement_references
+		WHERE status != 'deleted'
+			AND created_at >= $1
+			AND created_at <= $2
+		GROUP BY DATE_TRUNC('month', created_at)
+		ORDER BY period
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]int)
+	for rows.Next() {
+		var period string
+		var count int
+		if err := rows.Scan(&period, &count); err != nil {
+			continue
+		}
+		result[period] = count
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *AchievementReferenceRepository) GetAllAchievementMongoIDs(ctx context.Context) ([]string, error) {
+	query := `
+		SELECT mongo_achievement_id
+		FROM achievement_references
+		WHERE status != 'deleted'
+	`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var mongoIDs []string
+	for rows.Next() {
+		var mongoID string
+		if err := rows.Scan(&mongoID); err != nil {
+			continue
+		}
+		mongoIDs = append(mongoIDs, mongoID)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return mongoIDs, nil
 }

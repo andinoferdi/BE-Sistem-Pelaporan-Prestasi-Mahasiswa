@@ -44,11 +44,11 @@ func main() {
 
 	authService := servicepostgre.NewAuthService(userRepo)
 	userService := servicepostgre.NewUserService(userRepo, studentRepo, lecturerRepo, postgresDB)
-	studentService := servicepostgre.NewStudentServiceWithDeps(studentRepo, userRepo, lecturerRepo)
-	lecturerService := servicepostgre.NewLecturerServiceWithDeps(userRepo, lecturerRepo)
+	studentService := servicepostgre.NewStudentService(studentRepo, userRepo, lecturerRepo)
+	lecturerService := servicepostgre.NewLecturerService(userRepo, lecturerRepo)
 	notificationService := servicepostgre.NewNotificationService(notificationRepo, studentRepo, userRepo, achievementRepo)
 	achievementService := servicepostgre.NewAchievementService(achievementRepo, achievementRefRepo, userRepo, studentRepo, notificationService)
-	reportService := servicepostgre.NewReportService()
+	reportService := servicepostgre.NewReportService(achievementRepo, achievementRefRepo, studentRepo, userRepo, lecturerRepo)
 
 	routepostgre.AuthRoutes(app, authService, serverInstanceID)
 	routepostgre.UserRoutes(app, userService, studentService, lecturerService, postgresDB)

@@ -11,6 +11,12 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+type TopStudentResult struct {
+	StudentID        string `bson:"_id" json:"student_id"`
+	TotalPoints      int    `bson:"totalPoints" json:"total_points"`
+	AchievementCount int    `bson:"count" json:"achievement_count"`
+}
+
 type IAchievementRepository interface {
 	CreateAchievement(ctx context.Context, achievement *model.Achievement) (*model.Achievement, error)
 	GetAchievementByID(ctx context.Context, id string) (*model.Achievement, error)
@@ -19,6 +25,9 @@ type IAchievementRepository interface {
 	GetAchievementsByStudentID(ctx context.Context, studentID string) ([]model.Achievement, error)
 	GetAchievementsByIDs(ctx context.Context, ids []string) ([]model.Achievement, error)
 	AddAttachmentToAchievement(ctx context.Context, id string, attachment model.Attachment) (*model.Achievement, error)
+	GetAchievementsByType(ctx context.Context) (map[string]int, error)
+	GetCompetitionLevelDistribution(ctx context.Context) (map[string]int, error)
+	GetTopStudentsByPoints(ctx context.Context, limit int) ([]TopStudentResult, error)
 }
 
 type AchievementRepository struct {
@@ -200,4 +209,120 @@ func (r *AchievementRepository) AddAttachmentToAchievement(ctx context.Context, 
 	}
 
 	return r.GetAchievementByID(ctx, id)
+}
+
+func (r *AchievementRepository) GetAchievementsByType(ctx context.Context) (map[string]int, error) {
+	pipeline := []bson.M{
+		{
+			"$match": bson.M{
+				"deletedAt": bson.M{"$exists": false},
+			},
+		},
+		{
+			"$group": bson.M{
+				"_id":   "$achievementType",
+				"count": bson.M{"$sum": 1},
+			},
+		},
+	}
+
+	cursor, err := r.collection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	result := make(map[string]int)
+	for cursor.Next(ctx) {
+		var item struct {
+			ID    string `bson:"_id"`
+			Count int    `bson:"count"`
+		}
+		if err := cursor.Decode(&item); err != nil {
+			continue
+		}
+		result[item.ID] = item.Count
+	}
+
+	return result, nil
+}
+
+func (r *AchievementRepository) GetCompetitionLevelDistribution(ctx context.Context) (map[string]int, error) {
+	pipeline := []bson.M{
+		{
+			"$match": bson.M{
+				"achievementType": "competition",
+				"deletedAt":        bson.M{"$exists": false},
+				"details.competitionLevel": bson.M{"$exists": true, "$ne": nil},
+			},
+		},
+		{
+			"$group": bson.M{
+				"_id":   "$details.competitionLevel",
+				"count": bson.M{"$sum": 1},
+			},
+		},
+	}
+
+	cursor, err := r.collection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	result := make(map[string]int)
+	for cursor.Next(ctx) {
+		var item struct {
+			ID    string `bson:"_id"`
+			Count int    `bson:"count"`
+		}
+		if err := cursor.Decode(&item); err != nil {
+			continue
+		}
+		if item.ID != "" {
+			result[item.ID] = item.Count
+		}
+	}
+
+	return result, nil
+}
+
+func (r *AchievementRepository) GetTopStudentsByPoints(ctx context.Context, limit int) ([]TopStudentResult, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+
+	pipeline := []bson.M{
+		{
+			"$match": bson.M{
+				"deletedAt": bson.M{"$exists": false},
+			},
+		},
+		{
+			"$group": bson.M{
+				"_id":         "$studentId",
+				"totalPoints": bson.M{"$sum": "$points"},
+				"count":       bson.M{"$sum": 1},
+			},
+		},
+		{
+			"$sort": bson.M{"totalPoints": -1},
+		},
+		{
+			"$limit": limit,
+		},
+	}
+
+	cursor, err := r.collection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var results []TopStudentResult
+	if err = cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }

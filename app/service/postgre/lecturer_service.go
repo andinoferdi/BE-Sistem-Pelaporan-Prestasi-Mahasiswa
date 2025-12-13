@@ -21,11 +21,7 @@ type LecturerService struct {
 	lecturerRepo repositorypostgre.ILecturerRepository
 }
 
-func NewLecturerService(userRepo repositorypostgre.IUserRepository) ILecturerService {
-	return &LecturerService{userRepo: userRepo}
-}
-
-func NewLecturerServiceWithDeps(userRepo repositorypostgre.IUserRepository, lecturerRepo repositorypostgre.ILecturerRepository) ILecturerService {
+func NewLecturerService(userRepo repositorypostgre.IUserRepository, lecturerRepo repositorypostgre.ILecturerRepository) ILecturerService {
 	return &LecturerService{
 		userRepo:     userRepo,
 		lecturerRepo: lecturerRepo,

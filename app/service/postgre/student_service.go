@@ -25,11 +25,7 @@ type StudentService struct {
 	lecturerRepo repositorypostgre.ILecturerRepository
 }
 
-func NewStudentService(studentRepo repositorypostgre.IStudentRepository) IStudentService {
-	return &StudentService{studentRepo: studentRepo}
-}
-
-func NewStudentServiceWithDeps(studentRepo repositorypostgre.IStudentRepository, userRepo repositorypostgre.IUserRepository, lecturerRepo repositorypostgre.ILecturerRepository) IStudentService {
+func NewStudentService(studentRepo repositorypostgre.IStudentRepository, userRepo repositorypostgre.IUserRepository, lecturerRepo repositorypostgre.ILecturerRepository) IStudentService {
 	return &StudentService{
 		studentRepo:  studentRepo,
 		userRepo:     userRepo,

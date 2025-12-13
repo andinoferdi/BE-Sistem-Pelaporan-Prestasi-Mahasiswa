@@ -171,7 +171,9 @@ INSERT INTO permissions (name, resource, action, description) VALUES
 ('achievement:update', 'achievement', 'update', 'Mengupdate data prestasi'),
 ('achievement:delete', 'achievement', 'delete', 'Menghapus data prestasi'),
 ('achievement:verify', 'achievement', 'verify', 'Memverifikasi prestasi'),
-('user:manage', 'user', 'manage', 'Mengelola pengguna');
+('user:manage', 'user', 'manage', 'Mengelola pengguna'),
+('report:read', 'report', 'read', 'Membaca laporan prestasi'),
+('report:statistics', 'report', 'statistics', 'Melihat statistik prestasi');
 
 -- Insert Role Permissions
 INSERT INTO role_permissions (role_id, permission_id)
@@ -180,13 +182,16 @@ FROM roles r
 CROSS JOIN permissions p
 WHERE (r.name = 'Admin' AND p.name IN (
     'achievement:create', 'achievement:read', 'achievement:update', 
-    'achievement:delete', 'achievement:verify', 'user:manage'
+    'achievement:delete', 'achievement:verify', 'user:manage',
+    'report:read', 'report:statistics'
 ))
 OR (r.name = 'Mahasiswa' AND p.name IN (
-    'achievement:create', 'achievement:read', 'achievement:update', 'achievement:delete'
+    'achievement:create', 'achievement:read', 'achievement:update', 'achievement:delete',
+    'report:read', 'report:statistics'
 ))
 OR (r.name = 'Dosen Wali' AND p.name IN (
-    'achievement:read', 'achievement:verify'
+    'achievement:read', 'achievement:verify',
+    'report:read', 'report:statistics'
 ));
 
 -- Insert Users (1 Admin)
