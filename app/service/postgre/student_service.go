@@ -10,6 +10,8 @@ import (
 )
 
 type IStudentService interface {
+	GetAllStudents(ctx context.Context) ([]modelpostgre.Student, error)
+	GetStudentByID(ctx context.Context, id string) (*modelpostgre.Student, error)
 	GetStudentIDByUserID(ctx context.Context, userID string) (string, error)
 	GetStudentByUserID(ctx context.Context, userID string) (*modelpostgre.Student, error)
 	GetStudentsByAdvisorID(ctx context.Context, advisorID string) ([]modelpostgre.Student, error)
@@ -33,6 +35,17 @@ func NewStudentServiceWithDeps(studentRepo repositorypostgre.IStudentRepository,
 		userRepo:     userRepo,
 		lecturerRepo: lecturerRepo,
 	}
+}
+
+func (s *StudentService) GetAllStudents(ctx context.Context) ([]modelpostgre.Student, error) {
+	return s.studentRepo.GetAllStudents(ctx)
+}
+
+func (s *StudentService) GetStudentByID(ctx context.Context, id string) (*modelpostgre.Student, error) {
+	if id == "" {
+		return nil, errors.New("student ID wajib diisi")
+	}
+	return s.studentRepo.GetStudentByID(ctx, id)
 }
 
 func (s *StudentService) GetStudentIDByUserID(ctx context.Context, userID string) (string, error) {

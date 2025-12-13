@@ -54,7 +54,7 @@ func main() {
 	routepostgre.UserRoutes(app, userService, studentService, lecturerService, postgresDB)
 	routepostgre.AchievementRoutes(app, achievementService, postgresDB)
 	routepostgre.StudentRoutes(app, studentService, achievementService, postgresDB)
-	routepostgre.LecturerRoutes(app, lecturerService, postgresDB)
+	routepostgre.LecturerRoutes(app, lecturerService, studentService, postgresDB)
 	routepostgre.ReportRoutes(app, reportService, postgresDB)
 	routepostgre.NotificationRoutes(app, notificationService)
 

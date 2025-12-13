@@ -20,6 +20,7 @@ type IAchievementService interface {
 	RejectAchievement(ctx context.Context, userID string, roleID string, mongoID string, req modelpostgre.RejectAchievementRequest) (*modelpostgre.RejectAchievementResponse, error)
 	DeleteAchievement(ctx context.Context, userID string, roleID string, mongoID string) (*modelmongo.DeleteAchievementResponse, error)
 	GetAchievements(ctx context.Context, userID string, roleID string, page, limit int, statusFilter string, achievementTypeFilter string, sortBy string, sortOrder string) (map[string]interface{}, error)
+	GetAchievementsByStudentID(ctx context.Context, studentID string, page, limit int) (map[string]interface{}, error)
 	GetAchievementByID(ctx context.Context, userID string, roleID string, mongoID string) (map[string]interface{}, error)
 	UpdateAchievement(ctx context.Context, userID string, roleID string, mongoID string, req modelmongo.UpdateAchievementRequest) (map[string]interface{}, error)
 	GetAchievementStats(ctx context.Context) (map[string]interface{}, error)
@@ -510,6 +511,110 @@ func (s *AchievementService) GetAchievements(ctx context.Context, userID string,
 
 	if achievementTypeFilter != "" {
 		total = len(result)
+	}
+
+	totalPages := 0
+	if total > 0 {
+		totalPages = (total + limit - 1) / limit
+	}
+
+	return map[string]interface{}{
+		"status": "success",
+		"data":   result,
+		"pagination": map[string]interface{}{
+			"page":        page,
+			"limit":       limit,
+			"total":       total,
+			"total_pages": totalPages,
+		},
+	}, nil
+}
+
+func (s *AchievementService) GetAchievementsByStudentID(ctx context.Context, studentID string, page, limit int) (map[string]interface{}, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	references, total, err := s.achievementRefRepo.GetAchievementReferenceByStudentIDPaginated(ctx, studentID, page, limit)
+	if err != nil {
+		return nil, errors.New("error mengambil achievement references: " + err.Error())
+	}
+
+	if len(references) == 0 {
+		totalPages := 0
+		if total > 0 {
+			totalPages = (total + limit - 1) / limit
+		}
+		return map[string]interface{}{
+			"status": "success",
+			"data":   []modelmongo.Achievement{},
+			"pagination": map[string]interface{}{
+				"page":        page,
+				"limit":       limit,
+				"total":       total,
+				"total_pages": totalPages,
+			},
+		}, nil
+	}
+
+	var mongoIDs []string
+	for _, ref := range references {
+		mongoIDs = append(mongoIDs, ref.MongoAchievementID)
+	}
+
+	achievements, err := s.achievementRepo.GetAchievementsByIDs(ctx, mongoIDs)
+	if err != nil {
+		return nil, errors.New("error mengambil achievements dari MongoDB: " + err.Error())
+	}
+
+	referenceMap := make(map[string]modelpostgre.AchievementReference)
+	for _, ref := range references {
+		referenceMap[ref.MongoAchievementID] = ref
+	}
+
+	var result []map[string]interface{}
+	for _, achievement := range achievements {
+		ref := referenceMap[achievement.ID.Hex()]
+		item := map[string]interface{}{
+			"id":              achievement.ID.Hex(),
+			"studentId":       achievement.StudentID,
+			"achievementType": achievement.AchievementType,
+			"title":           achievement.Title,
+			"description":     achievement.Description,
+			"details":         achievement.Details,
+			"attachments":     achievement.Attachments,
+			"tags":            achievement.Tags,
+			"points":          achievement.Points,
+			"createdAt":       achievement.CreatedAt.Format(time.RFC3339),
+			"updatedAt":       achievement.UpdatedAt.Format(time.RFC3339),
+			"status":          ref.Status,
+		}
+
+		if ref.SubmittedAt != nil {
+			item["submitted_at"] = ref.SubmittedAt.Format(time.RFC3339)
+		}
+		if ref.VerifiedAt != nil {
+			item["verified_at"] = ref.VerifiedAt.Format(time.RFC3339)
+		}
+		if ref.VerifiedBy != nil {
+			verifiedByUser, err := s.userRepo.FindUserByID(ctx, *ref.VerifiedBy)
+			if err == nil && verifiedByUser != nil {
+				item["verified_by"] = verifiedByUser.FullName
+			} else {
+				item["verified_by"] = *ref.VerifiedBy
+			}
+		}
+		if ref.RejectionNote != nil {
+			item["rejection_note"] = *ref.RejectionNote
+		}
+
+		result = append(result, item)
 	}
 
 	totalPages := 0

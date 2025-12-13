@@ -3,7 +3,9 @@ package route
 import (
 	"context"
 	"database/sql"
+	modelpostgre "sistem-pelaporan-prestasi-mahasiswa/app/model/postgre"
 	servicepostgre "sistem-pelaporan-prestasi-mahasiswa/app/service/postgre"
+	"sistem-pelaporan-prestasi-mahasiswa/helper"
 	middlewarepostgre "sistem-pelaporan-prestasi-mahasiswa/middleware/postgre"
 	"strings"
 	"time"
@@ -15,24 +17,84 @@ func StudentRoutes(app *fiber.App, studentService servicepostgre.IStudentService
 	students := app.Group("/api/v1/students", middlewarepostgre.AuthRequired())
 
 	students.Get("", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
-		return c.Status(501).JSON(fiber.Map{
-			"error":   "Fitur belum diimplementasikan",
-			"message": "Fitur ini belum diimplementasikan.",
-		})
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		studentsList, err := studentService.GetAllStudents(ctx)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Gagal mengambil data",
+				"message": err.Error(),
+			})
+		}
+
+		response := modelpostgre.GetAllStudentsResponse{
+			Status: "success",
+			Data:   studentsList,
+		}
+
+		return c.JSON(response)
 	})
 
 	students.Get("/:id", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
-		return c.Status(501).JSON(fiber.Map{
-			"error":   "Fitur belum diimplementasikan",
-			"message": "Fitur ini belum diimplementasikan.",
-		})
+		id := c.Params("id")
+		if id == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":   "Permintaan tidak valid",
+				"message": "ID student wajib diisi.",
+			})
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		student, err := studentService.GetStudentByID(ctx, id)
+		if err != nil {
+			if strings.Contains(err.Error(), "tidak ditemukan") {
+				return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+					"error":   "Data tidak ditemukan",
+					"message": err.Error(),
+				})
+			}
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Gagal mengambil data",
+				"message": err.Error(),
+			})
+		}
+
+		response := modelpostgre.GetStudentByIDResponse{
+			Status: "success",
+			Data:   *student,
+		}
+
+		return c.JSON(response)
 	})
 
 	students.Get("/:id/achievements", middlewarepostgre.PermissionRequired(db, "achievement:read"), func(c *fiber.Ctx) error {
-		return c.Status(501).JSON(fiber.Map{
-			"error":   "Fitur belum diimplementasikan",
-			"message": "Fitur ini belum diimplementasikan.",
-		})
+		studentID := c.Params("id")
+		if studentID == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":   "Permintaan tidak valid",
+				"message": "ID student wajib diisi.",
+			})
+		}
+
+		page := helper.GetQueryInt(c, "page", 1)
+		limit := helper.GetQueryInt(c, "limit", 10)
+		page, limit = helper.ValidatePagination(page, limit)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		response, err := achievementService.GetAchievementsByStudentID(ctx, studentID, page, limit)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Gagal mengambil data",
+				"message": err.Error(),
+			})
+		}
+
+		return c.JSON(response)
 	})
 
 	students.Put("/:id/advisor", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
