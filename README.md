@@ -287,3 +287,16 @@ Multipart form-data dengan key `file` (PDF, JPG, PNG, DOC, DOCX, max 10MB)
 #### GET /api/v1/reports/statistics
 
 #### GET /api/v1/reports/student/:id
+
+### 5.9 Notifications
+
+#### GET /api/v1/notifications
+
+Query params: `page`, `limit`
+
+#### GET /api/v1/notifications/unread-count
+
+
+#### PUT /api/v1/notifications/:id/read
+
+#### PUT /api/v1/notifications/read-all

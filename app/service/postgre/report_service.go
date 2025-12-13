@@ -14,6 +14,8 @@ type IReportService interface {
 	GetStatistics(ctx context.Context, userID string, roleID string) (map[string]interface{}, error)
 	GetStudentReport(ctx context.Context, studentID string) (map[string]interface{}, error)
 	GetLecturerReport(ctx context.Context, lecturerID string) (map[string]interface{}, error)
+	GetCurrentStudentReport(ctx context.Context, userID string) (map[string]interface{}, error)
+	GetCurrentLecturerReport(ctx context.Context, userID string) (map[string]interface{}, error)
 }
 
 type ReportService struct {
@@ -467,4 +469,36 @@ func (s *ReportService) GetLecturerReport(ctx context.Context, lecturerID string
 			"topAdvisees": topAdviseesWithNames,
 		},
 	}, nil
+}
+
+func (s *ReportService) GetCurrentStudentReport(ctx context.Context, userID string) (map[string]interface{}, error) {
+	if userID == "" {
+		return nil, errors.New("user ID wajib diisi")
+	}
+
+	student, err := s.studentRepo.GetStudentByUserID(ctx, userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("student profile tidak ditemukan untuk user ini")
+		}
+		return nil, errors.New("error mengambil data student: " + err.Error())
+	}
+
+	return s.GetStudentReport(ctx, student.ID)
+}
+
+func (s *ReportService) GetCurrentLecturerReport(ctx context.Context, userID string) (map[string]interface{}, error) {
+	if userID == "" {
+		return nil, errors.New("user ID wajib diisi")
+	}
+
+	lecturer, err := s.userRepo.GetLecturerByUserID(ctx, userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("lecturer profile tidak ditemukan untuk user ini")
+		}
+		return nil, errors.New("error mengambil data lecturer: " + err.Error())
+	}
+
+	return s.GetLecturerReport(ctx, lecturer.ID)
 }

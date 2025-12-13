@@ -44,6 +44,29 @@ func ReportRoutes(app *fiber.App, reportService servicepostgre.IReportService, d
 		return c.JSON(response)
 	})
 
+	reports.Get("/student", func(c *fiber.Ctx) error {
+		userID, ok := c.Locals("user_id").(string)
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error":   "Tidak diizinkan",
+				"message": "User ID tidak ditemukan. Silakan login ulang.",
+			})
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		response, err := reportService.GetCurrentStudentReport(ctx, userID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Gagal mengambil data",
+				"message": err.Error(),
+			})
+		}
+
+		return c.JSON(response)
+	})
+
 	reports.Get("/student/:id", func(c *fiber.Ctx) error {
 		studentID := c.Params("id")
 		if studentID == "" {
@@ -57,6 +80,29 @@ func ReportRoutes(app *fiber.App, reportService servicepostgre.IReportService, d
 		defer cancel()
 
 		response, err := reportService.GetStudentReport(ctx, studentID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":   "Gagal mengambil data",
+				"message": err.Error(),
+			})
+		}
+
+		return c.JSON(response)
+	})
+
+	reports.Get("/lecturer", func(c *fiber.Ctx) error {
+		userID, ok := c.Locals("user_id").(string)
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error":   "Tidak diizinkan",
+				"message": "User ID tidak ditemukan. Silakan login ulang.",
+			})
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		response, err := reportService.GetCurrentLecturerReport(ctx, userID)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error":   "Gagal mengambil data",
