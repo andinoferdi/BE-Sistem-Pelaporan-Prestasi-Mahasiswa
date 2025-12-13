@@ -7,6 +7,7 @@ import (
 )
 
 func main() {
+
 	config.LoadEnv()
 
 	postgresDB := database.ConnectDB()
@@ -18,6 +19,5 @@ func main() {
 		log.Fatalf("Migration failed: %v", err)
 	}
 
-	log.Println("Migration completed successfully")
+	log.Println("All migrations completed successfully!")
 }
-

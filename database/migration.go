@@ -15,7 +15,6 @@ import (
 const postgresSchemaSQL = `DROP EXTENSION IF EXISTS "uuid-ossp" CASCADE;
 
 DROP TABLE IF EXISTS notifications CASCADE;
-DROP TABLE IF EXISTS refresh_tokens CASCADE;
 DROP TABLE IF EXISTS achievement_references CASCADE;
 DROP TABLE IF EXISTS students CASCADE;
 DROP TABLE IF EXISTS lecturers CASCADE;
@@ -111,18 +110,6 @@ CREATE INDEX idx_achievement_references_student_id ON achievement_references(stu
 CREATE INDEX idx_achievement_references_status ON achievement_references(status);
 CREATE INDEX idx_achievement_references_verified_by ON achievement_references(verified_by);
 
-CREATE TABLE refresh_tokens (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token TEXT UNIQUE NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
-CREATE INDEX idx_refresh_tokens_token ON refresh_tokens(token);
-CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
-
 CREATE TABLE notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -202,65 +189,21 @@ OR (r.name = 'Dosen Wali' AND p.name IN (
     'achievement:read', 'achievement:verify'
 ));
 
--- Insert Users (Total 7: 1 Admin, 3 Dosen Wali, 3 Mahasiswa)
--- Password untuk semua: 12345678
+-- Insert Users (1 Admin)
+-- Password: 123123123
 
 -- User Admin (1)
 INSERT INTO users (username, email, password_hash, full_name, role_id, is_active)
 SELECT 
     'admin',
     'admin@gmail.com',
-    '$2a$12$iix7znEDxwTFySv47.9.2u6Uh3LYNBh/TcNRbBfqK0Sg24wWmdyja',
+    '$2y$10$e6v0lDkhGKIYjvyBN6YCZ.J57sRRiltuj0LYCN9LAA8C6r/szYCPa',
     'Administrator',
     r.id,
     true
 FROM roles r
 WHERE r.name = 'Admin'
-LIMIT 1;
-
--- Users Dosen Wali (3)
-INSERT INTO users (username, email, password_hash, full_name, role_id, is_active) VALUES
-('dosen1', 'dosen1@gmail.com', '$2a$12$iix7znEDxwTFySv47.9.2u6Uh3LYNBh/TcNRbBfqK0Sg24wWmdyja', 'Prof. Dr. Ahmad Wijaya, S.T., M.T.', (SELECT id FROM roles WHERE name = 'Dosen Wali'), true),
-('dosen2', 'dosen2@gmail.com', '$2a$12$iix7znEDxwTFySv47.9.2u6Uh3LYNBh/TcNRbBfqK0Sg24wWmdyja', 'Dr. Siti Nurhaliza, S.Kom., M.Kom.', (SELECT id FROM roles WHERE name = 'Dosen Wali'), true),
-('dosen3', 'dosen3@gmail.com', '$2a$12$iix7znEDxwTFySv47.9.2u6Uh3LYNBh/TcNRbBfqK0Sg24wWmdyja', 'Dr. Budi Santoso, S.T., M.Sc.', (SELECT id FROM roles WHERE name = 'Dosen Wali'), true);
-
--- Users Mahasiswa (3)
-INSERT INTO users (username, email, password_hash, full_name, role_id, is_active) VALUES
-('mahasiswa1', 'mahasiswa1@gmail.com', '$2a$12$iix7znEDxwTFySv47.9.2u6Uh3LYNBh/TcNRbBfqK0Sg24wWmdyja', 'Andi Pratama', (SELECT id FROM roles WHERE name = 'Mahasiswa'), true),
-('mahasiswa2', 'mahasiswa2@gmail.com', '$2a$12$iix7znEDxwTFySv47.9.2u6Uh3LYNBh/TcNRbBfqK0Sg24wWmdyja', 'Budi Setiawan', (SELECT id FROM roles WHERE name = 'Mahasiswa'), true),
-('mahasiswa3', 'mahasiswa3@gmail.com', '$2a$12$iix7znEDxwTFySv47.9.2u6Uh3LYNBh/TcNRbBfqK0Sg24wWmdyja', 'Citra Dewi', (SELECT id FROM roles WHERE name = 'Mahasiswa'), true);
-
--- Insert Lecturers (3 data untuk 3 dosen wali)
-INSERT INTO lecturers (user_id, lecturer_id, department)
-SELECT 
-    u.id,
-    CASE u.username
-        WHEN 'dosen1' THEN 'DOS001'
-        WHEN 'dosen2' THEN 'DOS002'
-        WHEN 'dosen3' THEN 'DOS003'
-    END,
-    'Teknik Informatika'
-FROM users u
-WHERE u.username IN ('dosen1', 'dosen2', 'dosen3');
-
--- Insert Students (3 data untuk 3 mahasiswa)
-INSERT INTO students (user_id, student_id, program_study, academic_year, advisor_id)
-SELECT 
-    u.id,
-    CASE u.username
-        WHEN 'mahasiswa1' THEN '202410001'
-        WHEN 'mahasiswa2' THEN '202410002'
-        WHEN 'mahasiswa3' THEN '202410003'
-    END,
-    'Teknik Informatika',
-    '2024',
-    CASE u.username
-        WHEN 'mahasiswa1' THEN (SELECT l.id FROM lecturers l JOIN users u2 ON l.user_id = u2.id WHERE u2.username = 'dosen1' LIMIT 1)
-        WHEN 'mahasiswa2' THEN (SELECT l.id FROM lecturers l JOIN users u2 ON l.user_id = u2.id WHERE u2.username = 'dosen2' LIMIT 1)
-        WHEN 'mahasiswa3' THEN (SELECT l.id FROM lecturers l JOIN users u2 ON l.user_id = u2.id WHERE u2.username = 'dosen3' LIMIT 1)
-    END
-FROM users u
-WHERE u.username IN ('mahasiswa1', 'mahasiswa2', 'mahasiswa3');`
+LIMIT 1;`
 
 // RunMigrations menjalankan migrasi PostgreSQL dan MongoDB secara berurutan.
 func RunMigrations(postgresDB *sql.DB, mongoDB *mongo.Database) error {

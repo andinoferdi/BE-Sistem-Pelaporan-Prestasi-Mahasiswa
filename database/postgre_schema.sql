@@ -1,7 +1,6 @@
 DROP EXTENSION IF EXISTS "uuid-ossp" CASCADE;
 
 DROP TABLE IF EXISTS notifications CASCADE;
-DROP TABLE IF EXISTS refresh_tokens CASCADE;
 DROP TABLE IF EXISTS achievement_references CASCADE;
 DROP TABLE IF EXISTS students CASCADE;
 DROP TABLE IF EXISTS lecturers CASCADE;
@@ -85,14 +84,6 @@ CREATE TABLE achievement_references (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE refresh_tokens (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token TEXT UNIQUE NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
 CREATE TABLE notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -118,9 +109,6 @@ CREATE INDEX idx_lecturers_user_id ON lecturers(user_id);
 CREATE INDEX idx_achievement_references_student_id ON achievement_references(student_id);
 CREATE INDEX idx_achievement_references_status ON achievement_references(status);
 CREATE INDEX idx_achievement_references_verified_by ON achievement_references(verified_by);
-CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
-CREATE INDEX idx_refresh_tokens_token ON refresh_tokens(token);
-CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
 CREATE INDEX idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX idx_notifications_is_read ON notifications(is_read);
 CREATE INDEX idx_notifications_created_at ON notifications(created_at);

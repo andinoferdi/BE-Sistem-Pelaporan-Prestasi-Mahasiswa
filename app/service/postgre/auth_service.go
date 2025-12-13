@@ -7,7 +7,6 @@ import (
 	model "sistem-pelaporan-prestasi-mahasiswa/app/model/postgre"
 	repository "sistem-pelaporan-prestasi-mahasiswa/app/repository/postgre"
 	utilspostgre "sistem-pelaporan-prestasi-mahasiswa/utils/postgre"
-	"time"
 )
 
 type IAuthService interface {
@@ -56,11 +55,6 @@ func (s *AuthService) Login(ctx context.Context, req model.LoginRequest) (*model
 		return nil, errors.New("error generating refresh token: " + err.Error())
 	}
 
-	expiresAt := time.Now().Add(7 * 24 * time.Hour).Format(time.RFC3339)
-	if err := s.userRepo.SaveRefreshToken(ctx, user.ID, refreshToken, expiresAt); err != nil {
-		return nil, errors.New("error menyimpan refresh token: " + err.Error())
-	}
-
 	permissions, err := s.userRepo.GetUserPermissions(ctx, user.ID)
 	if err != nil {
 		return nil, errors.New("error mengambil permissions: " + err.Error())
@@ -98,17 +92,8 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*m
 		return nil, errors.New("refresh token wajib diisi")
 	}
 
-	_, err := s.userRepo.GetRefreshToken(ctx, refreshToken)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, errors.New("refresh token tidak valid atau sudah expired")
-		}
-		return nil, err
-	}
-
 	claims, err := utilspostgre.ValidateRefreshToken(refreshToken)
 	if err != nil {
-		s.userRepo.DeleteRefreshToken(ctx, refreshToken)
 		return nil, errors.New("refresh token tidak valid atau sudah expired")
 	}
 
@@ -121,7 +106,6 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*m
 	}
 
 	if !user.IsActive {
-		s.userRepo.DeleteRefreshToken(ctx, refreshToken)
 		return nil, errors.New("akun Anda tidak aktif. Silakan hubungi administrator")
 	}
 
@@ -133,13 +117,6 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*m
 	newRefreshToken, err := utilspostgre.GenerateRefreshToken(*user)
 	if err != nil {
 		return nil, errors.New("error generating refresh token: " + err.Error())
-	}
-
-	s.userRepo.DeleteRefreshToken(ctx, refreshToken)
-
-	expiresAt := time.Now().Add(7 * 24 * time.Hour).Format(time.RFC3339)
-	if err := s.userRepo.SaveRefreshToken(ctx, user.ID, newRefreshToken, expiresAt); err != nil {
-		return nil, errors.New("error menyimpan refresh token: " + err.Error())
 	}
 
 	response := &model.RefreshTokenResponse{
@@ -157,7 +134,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*m
 }
 
 func (s *AuthService) Logout(ctx context.Context, userID string) error {
-	return s.userRepo.DeleteUserRefreshTokens(ctx, userID)
+	return nil
 }
 
 func (s *AuthService) GetProfile(ctx context.Context, userID string) (*model.GetProfileResponse, error) {

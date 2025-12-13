@@ -3,13 +3,13 @@ package main
 import (
 	"log"
 	"os"
+	repositorymongo "sistem-pelaporan-prestasi-mahasiswa/app/repository/mongo"
+	repositorypostgre "sistem-pelaporan-prestasi-mahasiswa/app/repository/postgre"
+	servicepostgre "sistem-pelaporan-prestasi-mahasiswa/app/service/postgre"
 	"sistem-pelaporan-prestasi-mahasiswa/config"
 	configmongo "sistem-pelaporan-prestasi-mahasiswa/config/mongo"
 	"sistem-pelaporan-prestasi-mahasiswa/database"
 	"sistem-pelaporan-prestasi-mahasiswa/middleware"
-	repositorymongo "sistem-pelaporan-prestasi-mahasiswa/app/repository/mongo"
-	repositorypostgre "sistem-pelaporan-prestasi-mahasiswa/app/repository/postgre"
-	servicepostgre "sistem-pelaporan-prestasi-mahasiswa/app/service/postgre"
 	routepostgre "sistem-pelaporan-prestasi-mahasiswa/route/postgre"
 
 	"github.com/google/uuid"
@@ -37,20 +37,21 @@ func main() {
 
 	userRepo := repositorypostgre.NewUserRepository(postgresDB)
 	studentRepo := repositorypostgre.NewStudentRepository(postgresDB)
+	lecturerRepo := repositorypostgre.NewLecturerRepository(postgresDB)
 	achievementRefRepo := repositorypostgre.NewAchievementReferenceRepository(postgresDB)
 	achievementRepo := repositorymongo.NewAchievementRepository(mongoDB)
 	notificationRepo := repositorypostgre.NewNotificationRepository(postgresDB)
 
 	authService := servicepostgre.NewAuthService(userRepo)
-	userService := servicepostgre.NewUserService(userRepo)
-	studentService := servicepostgre.NewStudentService(studentRepo)
-	lecturerService := servicepostgre.NewLecturerService(userRepo)
+	userService := servicepostgre.NewUserService(userRepo, studentRepo, lecturerRepo, postgresDB)
+	studentService := servicepostgre.NewStudentServiceWithDeps(studentRepo, userRepo, lecturerRepo)
+	lecturerService := servicepostgre.NewLecturerServiceWithDeps(userRepo, lecturerRepo)
 	notificationService := servicepostgre.NewNotificationService(notificationRepo, studentRepo, userRepo, achievementRepo)
 	achievementService := servicepostgre.NewAchievementService(achievementRepo, achievementRefRepo, userRepo, studentRepo, notificationService)
 	reportService := servicepostgre.NewReportService()
 
 	routepostgre.AuthRoutes(app, authService, serverInstanceID)
-	routepostgre.UserRoutes(app, userService, postgresDB)
+	routepostgre.UserRoutes(app, userService, studentService, lecturerService, postgresDB)
 	routepostgre.AchievementRoutes(app, achievementService, postgresDB)
 	routepostgre.StudentRoutes(app, studentService, achievementService, postgresDB)
 	routepostgre.LecturerRoutes(app, lecturerService, postgresDB)

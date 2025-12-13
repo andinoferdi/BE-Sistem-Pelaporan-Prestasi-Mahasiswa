@@ -15,11 +15,18 @@ type User struct {
 }
 
 type CreateUserRequest struct {
-	Username string `json:"username" validate:"required"`
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
-	FullName string `json:"full_name" validate:"required"`
-	RoleID   string `json:"role_id" validate:"required"`
+	Username     string `json:"username" validate:"required"`
+	Email        string `json:"email" validate:"required,email"`
+	Password     string `json:"password" validate:"required"`
+	FullName     string `json:"full_name" validate:"required"`
+	RoleID       string `json:"role_id" validate:"required"`
+	IsActive     *bool  `json:"is_active,omitempty"`
+	StudentID    string `json:"student_id,omitempty"`
+	ProgramStudy string `json:"program_study,omitempty"`
+	AcademicYear string `json:"academic_year,omitempty"`
+	AdvisorID    string `json:"advisor_id,omitempty"`
+	LecturerID   string `json:"lecturer_id,omitempty"`
+	Department   string `json:"department,omitempty"`
 }
 
 type UpdateUserRequest struct {
@@ -53,4 +60,3 @@ type UpdateUserResponse struct {
 type DeleteUserResponse struct {
 	Status string `json:"status"`
 }
-

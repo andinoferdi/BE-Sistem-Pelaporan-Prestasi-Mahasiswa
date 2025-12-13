@@ -57,10 +57,22 @@ func AchievementRoutes(app *fiber.App, achievementService servicepostgre.IAchiev
 		limit := helper.GetQueryInt(c, "limit", 10)
 		page, limit = helper.ValidatePagination(page, limit)
 
+		statusFilter := helper.GetQueryString(c, "status", "")
+		achievementTypeFilter := helper.GetQueryString(c, "achievementType", "")
+		sortBy := helper.GetQueryString(c, "sortBy", "")
+		sortOrder := helper.GetQueryString(c, "sortOrder", "")
+
+		if sortOrder != "" {
+			sortOrder = strings.ToUpper(sortOrder)
+			if sortOrder != "ASC" && sortOrder != "DESC" {
+				sortOrder = "DESC"
+			}
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		response, err := achievementService.GetAchievements(ctx, userID, roleID, page, limit)
+		response, err := achievementService.GetAchievements(ctx, userID, roleID, page, limit, statusFilter, achievementTypeFilter, sortBy, sortOrder)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error":   "Gagal mengambil data",

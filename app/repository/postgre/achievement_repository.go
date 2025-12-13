@@ -18,7 +18,7 @@ type IAchievementReferenceRepository interface {
 	GetAllAchievementReferences(ctx context.Context) ([]model.AchievementReference, error)
 	GetAchievementReferenceByStudentIDPaginated(ctx context.Context, studentID string, page, limit int) ([]model.AchievementReference, int, error)
 	GetAchievementReferencesByAdvisorIDPaginated(ctx context.Context, advisorID string, page, limit int) ([]model.AchievementReference, int, error)
-	GetAllAchievementReferencesPaginated(ctx context.Context, page, limit int) ([]model.AchievementReference, int, error)
+	GetAllAchievementReferencesPaginated(ctx context.Context, page, limit int, statusFilter string, sortBy string, sortOrder string) ([]model.AchievementReference, int, error)
 	UpdateAchievementReferenceVerify(ctx context.Context, id string, verifiedBy string) error
 	UpdateAchievementReferenceReject(ctx context.Context, id string, verifiedBy string, rejectionNote string) error
 	GetAchievementStats(ctx context.Context) (int, int, error)
@@ -338,30 +338,78 @@ func (r *AchievementReferenceRepository) GetAchievementReferencesByAdvisorIDPagi
 	return references, total, nil
 }
 
-func (r *AchievementReferenceRepository) GetAllAchievementReferencesPaginated(ctx context.Context, page, limit int) ([]model.AchievementReference, int, error) {
+func (r *AchievementReferenceRepository) GetAllAchievementReferencesPaginated(ctx context.Context, page, limit int, statusFilter string, sortBy string, sortOrder string) ([]model.AchievementReference, int, error) {
 	offset := (page - 1) * limit
 
-	countQuery := `
+	var countQuery string
+	var total int
+	var err error
+
+	if statusFilter != "" {
+		countQuery = `
+			SELECT COUNT(*)
+			FROM achievement_references
+			WHERE status = $1 AND status != 'deleted'
+		`
+		err = r.db.QueryRowContext(ctx, countQuery, statusFilter).Scan(&total)
+	} else {
+		countQuery = `
 		SELECT COUNT(*)
 		FROM achievement_references
 		WHERE status != 'deleted'
 	`
-	var total int
-	err := r.db.QueryRowContext(ctx, countQuery).Scan(&total)
+		err = r.db.QueryRowContext(ctx, countQuery).Scan(&total)
+	}
+
 	if err != nil {
 		return nil, 0, err
 	}
 
-	query := `
+	if sortBy == "" {
+		sortBy = "created_at"
+	}
+	if sortOrder == "" || (sortOrder != "ASC" && sortOrder != "DESC") {
+		sortOrder = "DESC"
+	}
+
+	allowedSortBy := map[string]bool{
+		"created_at":   true,
+		"updated_at":   true,
+		"submitted_at": true,
+		"status":       true,
+	}
+	if !allowedSortBy[sortBy] {
+		sortBy = "created_at"
+	}
+
+	orderBy := sortBy + " " + sortOrder
+
+	var query string
+	var queryArgs []interface{}
+
+	if statusFilter != "" {
+		query = `
+			SELECT id, student_id, mongo_achievement_id, status, submitted_at,
+			       verified_at, verified_by, rejection_note, created_at, updated_at
+			FROM achievement_references
+			WHERE status = $1 AND status != 'deleted'
+			ORDER BY ` + orderBy + `
+			LIMIT $2 OFFSET $3
+		`
+		queryArgs = []interface{}{statusFilter, limit, offset}
+	} else {
+		query = `
 		SELECT id, student_id, mongo_achievement_id, status, submitted_at,
 		       verified_at, verified_by, rejection_note, created_at, updated_at
 		FROM achievement_references
 		WHERE status != 'deleted'
-		ORDER BY created_at DESC
+			ORDER BY ` + orderBy + `
 		LIMIT $1 OFFSET $2
 	`
+		queryArgs = []interface{}{limit, offset}
+	}
 
-	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, queryArgs...)
 	if err != nil {
 		return nil, 0, err
 	}

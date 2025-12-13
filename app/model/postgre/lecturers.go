@@ -7,6 +7,7 @@ type Lecturer struct {
 	UserID     string    `json:"user_id"`
 	LecturerID string    `json:"lecturer_id"`
 	Department string    `json:"department"`
+	FullName   string    `json:"full_name,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
 }
 
@@ -44,4 +45,3 @@ type UpdateLecturerResponse struct {
 type DeleteLecturerResponse struct {
 	Status string `json:"status"`
 }
-

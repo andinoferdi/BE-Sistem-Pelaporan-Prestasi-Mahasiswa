@@ -9,6 +9,7 @@ import (
 	modelpostgre "sistem-pelaporan-prestasi-mahasiswa/app/model/postgre"
 	repositorymongo "sistem-pelaporan-prestasi-mahasiswa/app/repository/mongo"
 	repositorypostgre "sistem-pelaporan-prestasi-mahasiswa/app/repository/postgre"
+	"sistem-pelaporan-prestasi-mahasiswa/helper"
 	"time"
 )
 
@@ -18,7 +19,7 @@ type IAchievementService interface {
 	VerifyAchievement(ctx context.Context, userID string, roleID string, mongoID string) (*modelpostgre.VerifyAchievementResponse, error)
 	RejectAchievement(ctx context.Context, userID string, roleID string, mongoID string, req modelpostgre.RejectAchievementRequest) (*modelpostgre.RejectAchievementResponse, error)
 	DeleteAchievement(ctx context.Context, userID string, roleID string, mongoID string) (*modelmongo.DeleteAchievementResponse, error)
-	GetAchievements(ctx context.Context, userID string, roleID string, page, limit int) (map[string]interface{}, error)
+	GetAchievements(ctx context.Context, userID string, roleID string, page, limit int, statusFilter string, achievementTypeFilter string, sortBy string, sortOrder string) (map[string]interface{}, error)
 	GetAchievementByID(ctx context.Context, userID string, roleID string, mongoID string) (map[string]interface{}, error)
 	UpdateAchievement(ctx context.Context, userID string, roleID string, mongoID string, req modelmongo.UpdateAchievementRequest) (map[string]interface{}, error)
 	GetAchievementStats(ctx context.Context) (map[string]interface{}, error)
@@ -26,11 +27,11 @@ type IAchievementService interface {
 }
 
 type AchievementService struct {
-	achievementRepo      repositorymongo.IAchievementRepository
-	achievementRefRepo   repositorypostgre.IAchievementReferenceRepository
-	userRepo             repositorypostgre.IUserRepository
-	studentRepo          repositorypostgre.IStudentRepository
-	notificationService  INotificationService
+	achievementRepo     repositorymongo.IAchievementRepository
+	achievementRefRepo  repositorypostgre.IAchievementReferenceRepository
+	userRepo            repositorypostgre.IUserRepository
+	studentRepo         repositorypostgre.IStudentRepository
+	notificationService INotificationService
 }
 
 func NewAchievementService(
@@ -42,7 +43,7 @@ func NewAchievementService(
 ) IAchievementService {
 	return &AchievementService{
 		achievementRepo:     achievementRepo,
-		achievementRefRepo:   achievementRefRepo,
+		achievementRefRepo:  achievementRefRepo,
 		userRepo:            userRepo,
 		studentRepo:         studentRepo,
 		notificationService: notificationService,
@@ -65,6 +66,18 @@ func (s *AchievementService) CreateAchievement(ctx context.Context, userID strin
 			return nil, errors.New("data mahasiswa tidak ditemukan. Pastikan user memiliki profil mahasiswa")
 		}
 		return nil, err
+	}
+
+	if !helper.IsValidUUID(studentID) {
+		return nil, errors.New("student ID tidak valid")
+	}
+
+	_, err = s.studentRepo.GetStudentByID(ctx, studentID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("data mahasiswa tidak ditemukan di database")
+		}
+		return nil, errors.New("error memvalidasi student ID: " + err.Error())
 	}
 
 	if req.AchievementType == "" {
@@ -355,7 +368,7 @@ func (s *AchievementService) DeleteAchievement(ctx context.Context, userID strin
 	return response, nil
 }
 
-func (s *AchievementService) GetAchievements(ctx context.Context, userID string, roleID string, page, limit int) (map[string]interface{}, error) {
+func (s *AchievementService) GetAchievements(ctx context.Context, userID string, roleID string, page, limit int, statusFilter string, achievementTypeFilter string, sortBy string, sortOrder string) (map[string]interface{}, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -398,7 +411,7 @@ func (s *AchievementService) GetAchievements(ctx context.Context, userID string,
 			return nil, errors.New("error mengambil achievement references: " + err.Error())
 		}
 	} else if roleName == "Admin" {
-		references, total, err = s.achievementRefRepo.GetAllAchievementReferencesPaginated(ctx, page, limit)
+		references, total, err = s.achievementRefRepo.GetAllAchievementReferencesPaginated(ctx, page, limit, statusFilter, sortBy, sortOrder)
 		if err != nil {
 			return nil, errors.New("error mengambil achievement references: " + err.Error())
 		}
@@ -438,8 +451,22 @@ func (s *AchievementService) GetAchievements(ctx context.Context, userID string,
 		referenceMap[ref.MongoAchievementID] = ref
 	}
 
+	studentMap := make(map[string]modelpostgre.Student)
+	for _, ref := range references {
+		if _, exists := studentMap[ref.StudentID]; !exists {
+			student, err := s.studentRepo.GetStudentByID(ctx, ref.StudentID)
+			if err == nil && student != nil {
+				studentMap[ref.StudentID] = *student
+			}
+		}
+	}
+
 	var result []map[string]interface{}
 	for _, achievement := range achievements {
+		if achievementTypeFilter != "" && achievement.AchievementType != achievementTypeFilter {
+			continue
+		}
+
 		ref := referenceMap[achievement.ID.Hex()]
 		item := map[string]interface{}{
 			"id":              achievement.ID.Hex(),
@@ -454,6 +481,10 @@ func (s *AchievementService) GetAchievements(ctx context.Context, userID string,
 			"createdAt":       achievement.CreatedAt.Format(time.RFC3339),
 			"updatedAt":       achievement.UpdatedAt.Format(time.RFC3339),
 			"status":          ref.Status,
+		}
+
+		if student, exists := studentMap[ref.StudentID]; exists {
+			item["student_name"] = student.FullName
 		}
 
 		if ref.SubmittedAt != nil {
@@ -475,6 +506,10 @@ func (s *AchievementService) GetAchievements(ctx context.Context, userID string,
 		}
 
 		result = append(result, item)
+	}
+
+	if achievementTypeFilter != "" {
+		total = len(result)
 	}
 
 	totalPages := 0
