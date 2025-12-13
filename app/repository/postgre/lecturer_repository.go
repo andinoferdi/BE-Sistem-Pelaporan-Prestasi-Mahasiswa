@@ -118,6 +118,28 @@ func (r *LecturerRepository) CreateLecturer(ctx context.Context, req model.Creat
 	return lecturer, nil
 }
 
+func (r *LecturerRepository) CreateLecturerWithTx(ctx context.Context, tx *sql.Tx, req model.CreateLecturerRequest) (*model.Lecturer, error) {
+	query := `
+		INSERT INTO lecturers (user_id, lecturer_id, department, created_at)
+		VALUES ($1, $2, $3, NOW())
+		RETURNING id, user_id, lecturer_id, department, created_at
+	`
+
+	lecturer := new(model.Lecturer)
+	err := tx.QueryRowContext(ctx, query,
+		req.UserID, req.LecturerID, req.Department,
+	).Scan(
+		&lecturer.ID, &lecturer.UserID, &lecturer.LecturerID,
+		&lecturer.Department, &lecturer.CreatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return lecturer, nil
+}
+
 func (r *LecturerRepository) UpdateLecturer(ctx context.Context, id string, req model.UpdateLecturerRequest) (*model.Lecturer, error) {
 	query := `
 		UPDATE lecturers

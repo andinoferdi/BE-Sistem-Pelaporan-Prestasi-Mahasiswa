@@ -1,16 +1,12 @@
 # Sistem Pelaporan Prestasi Mahasiswa
 
 **Nama:** Andino Ferdiansah  
-**NIM:** 434231065
-**KELAS** C4
+**NIM:** 434231065  
+**Kelas:** C4
 
 ## API Endpoints
 
-### Health
-
-#### GET /api/v1/health
-
-### Authentication
+### 5.1 Authentication
 
 #### POST /api/v1/auth/login
 
@@ -33,7 +29,7 @@
 
 #### GET /api/v1/auth/profile
 
-### Users
+### 5.2 Users (Admin)
 
 #### GET /api/v1/users
 
@@ -105,55 +101,7 @@
 }
 ```
 
-#### POST /api/v1/users/:id/student-profile
-
-```json
-{
-  "student_id": "M010",
-  "program_study": "Teknik Informatika",
-  "academic_year": "2024",
-  "advisor_id": "8b063da7-9b5b-43b5-8dc3-3e67019d6c81"
-}
-```
-
-#### POST /api/v1/users/:id/lecturer-profile
-
-```json
-{
-  "lecturer_id": "dosen012",
-  "department": "Teknik Informatika"
-}
-```
-
-### Roles
-
-#### GET /api/v1/roles
-
-### Lecturers
-
-#### GET /api/v1/lecturers
-
-#### GET /api/v1/lecturers/:id/advisees
-
-### Students
-
-#### GET /api/v1/students
-
-#### GET /api/v1/students/:id
-
-#### GET /api/v1/students/:id/achievements
-
-#### PUT /api/v1/students/:id/advisor
-
-```json
-{
-  "advisor_id": "8b063da7-9b5b-43b5-8dc3-3e67019d6c81"
-}
-```
-
-### Achievements
-
-#### GET /api/v1/achievements/stats
+### 5.4 Achievements
 
 #### GET /api/v1/achievements
 
@@ -294,9 +242,7 @@ Query params: `page`, `limit`, `status`, `achievementType`, `sortBy`, `sortOrder
 }
 ```
 
-#### POST /api/v1/achievements/:id/attachments
-
-Multipart form-data dengan key `file` (PDF, JPG, PNG, DOC, DOCX, max 10MB)
+#### DELETE /api/v1/achievements/:id
 
 #### POST /api/v1/achievements/:id/submit
 
@@ -312,21 +258,31 @@ Multipart form-data dengan key `file` (PDF, JPG, PNG, DOC, DOCX, max 10MB)
 
 #### GET /api/v1/achievements/:id/history
 
-#### DELETE /api/v1/achievements/:id
+#### POST /api/v1/achievements/:id/attachments
 
-### Notifications
+Multipart form-data dengan key `file` (PDF, JPG, PNG, DOC, DOCX, max 10MB)
 
-#### GET /api/v1/notifications
+### 5.5 Students & Lecturers
 
-Query params: `page`, `limit`
+#### GET /api/v1/students
 
-#### GET /api/v1/notifications/unread-count
+#### GET /api/v1/students/:id
 
-#### PUT /api/v1/notifications/:id/read
+#### GET /api/v1/students/:id/achievements
 
-#### PUT /api/v1/notifications/read-all
+#### PUT /api/v1/students/:id/advisor
 
-### Reports
+```json
+{
+  "advisor_id": "8b063da7-9b5b-43b5-8dc3-3e67019d6c81"
+}
+```
+
+#### GET /api/v1/lecturers
+
+#### GET /api/v1/lecturers/:id/advisees
+
+### 5.8 Reports & Analytics
 
 #### GET /api/v1/reports/statistics
 

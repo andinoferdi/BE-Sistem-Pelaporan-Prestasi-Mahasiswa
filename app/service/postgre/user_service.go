@@ -73,7 +73,12 @@ func (s *UserService) CreateUser(ctx context.Context, req model.CreateUserReques
 		return nil, errors.New("username sudah digunakan")
 	}
 
-	_, err := s.userRepo.GetRoleName(ctx, req.RoleID)
+	passwordHash, err := utilspostgre.HashPassword(req.Password)
+	if err != nil {
+		return nil, errors.New("error hashing password: " + err.Error())
+	}
+
+	roleName, err := s.userRepo.GetRoleName(ctx, req.RoleID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("role tidak ditemukan")
@@ -81,10 +86,11 @@ func (s *UserService) CreateUser(ctx context.Context, req model.CreateUserReques
 		return nil, errors.New("error mengambil role name: " + err.Error())
 	}
 
-	passwordHash, err := utilspostgre.HashPassword(req.Password)
+	tx, err := s.db.Begin()
 	if err != nil {
-		return nil, errors.New("error hashing password: " + err.Error())
+		return nil, errors.New("error memulai transaction: " + err.Error())
 	}
+	defer tx.Rollback()
 
 	user := model.User{
 		Username:     req.Username,
@@ -95,14 +101,14 @@ func (s *UserService) CreateUser(ctx context.Context, req model.CreateUserReques
 		IsActive:     true,
 	}
 
-	createdUser, err := s.userRepo.CreateUser(ctx, user)
-	if err != nil {
-		return nil, errors.New("error membuat user: " + err.Error())
+	userRepoImpl, ok := s.userRepo.(*repository.UserRepository)
+	if !ok {
+		return nil, errors.New("error casting user repository")
 	}
 
-	roleName, err := s.userRepo.GetRoleName(ctx, createdUser.RoleID)
+	createdUser, err := userRepoImpl.CreateUserWithTx(ctx, tx, user)
 	if err != nil {
-		return nil, errors.New("error mengambil role name: " + err.Error())
+		return nil, errors.New("error membuat user: " + err.Error())
 	}
 
 	if roleName == "Mahasiswa" && req.StudentID != "" {
@@ -113,7 +119,11 @@ func (s *UserService) CreateUser(ctx context.Context, req model.CreateUserReques
 			AcademicYear: req.AcademicYear,
 			AdvisorID:    req.AdvisorID,
 		}
-		_, err := s.studentRepo.CreateStudent(ctx, studentReq)
+		studentRepoImpl, ok := s.studentRepo.(*repository.StudentRepository)
+		if !ok {
+			return nil, errors.New("error casting student repository")
+		}
+		_, err := studentRepoImpl.CreateStudentWithTx(ctx, tx, studentReq)
 		if err != nil {
 			return nil, errors.New("error membuat student profile: " + err.Error())
 		}
@@ -125,10 +135,18 @@ func (s *UserService) CreateUser(ctx context.Context, req model.CreateUserReques
 			LecturerID: req.LecturerID,
 			Department: req.Department,
 		}
-		_, err := s.lecturerRepo.CreateLecturer(ctx, lecturerReq)
+		lecturerRepoImpl, ok := s.lecturerRepo.(*repository.LecturerRepository)
+		if !ok {
+			return nil, errors.New("error casting lecturer repository")
+		}
+		_, err := lecturerRepoImpl.CreateLecturerWithTx(ctx, tx, lecturerReq)
 		if err != nil {
 			return nil, errors.New("error membuat lecturer profile: " + err.Error())
 		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, errors.New("error commit transaction: " + err.Error())
 	}
 
 	return createdUser, nil

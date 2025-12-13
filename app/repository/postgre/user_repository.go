@@ -263,6 +263,29 @@ func (r *UserRepository) CreateUser(ctx context.Context, user model.User) (*mode
 	return newUser, nil
 }
 
+func (r *UserRepository) CreateUserWithTx(ctx context.Context, tx *sql.Tx, user model.User) (*model.User, error) {
+	query := `
+		INSERT INTO users (username, email, password_hash, full_name, role_id, is_active, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+		RETURNING id, username, email, password_hash, full_name, role_id, is_active, created_at, updated_at
+	`
+
+	newUser := new(model.User)
+	err := tx.QueryRowContext(ctx, query,
+		user.Username, user.Email, user.PasswordHash, user.FullName, user.RoleID, user.IsActive,
+	).Scan(
+		&newUser.ID, &newUser.Username, &newUser.Email, &newUser.PasswordHash,
+		&newUser.FullName, &newUser.RoleID, &newUser.IsActive,
+		&newUser.CreatedAt, &newUser.UpdatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return newUser, nil
+}
+
 func (r *UserRepository) UpdateUser(ctx context.Context, id string, user model.User) (*model.User, error) {
 	query := `
 		UPDATE users

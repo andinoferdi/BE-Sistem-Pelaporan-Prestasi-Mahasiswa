@@ -188,6 +188,34 @@ func (r *StudentRepository) CreateStudent(ctx context.Context, req model.CreateS
 	return student, nil
 }
 
+func (r *StudentRepository) CreateStudentWithTx(ctx context.Context, tx *sql.Tx, req model.CreateStudentRequest) (*model.Student, error) {
+	query := `
+		INSERT INTO students (user_id, student_id, program_study, academic_year, advisor_id, created_at)
+		VALUES ($1, $2, $3, $4, $5, NOW())
+		RETURNING id, user_id, student_id, program_study, academic_year, advisor_id, created_at
+	`
+
+	student := new(model.Student)
+	var advisorID sql.NullString
+	err := tx.QueryRowContext(ctx, query,
+		req.UserID, req.StudentID, req.ProgramStudy, req.AcademicYear, req.AdvisorID,
+	).Scan(
+		&student.ID, &student.UserID, &student.StudentID,
+		&student.ProgramStudy, &student.AcademicYear, &advisorID,
+		&student.CreatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if advisorID.Valid {
+		student.AdvisorID = advisorID.String
+	}
+
+	return student, nil
+}
+
 func (r *StudentRepository) UpdateStudent(ctx context.Context, id string, req model.UpdateStudentRequest) (*model.Student, error) {
 	query := `
 		UPDATE students
