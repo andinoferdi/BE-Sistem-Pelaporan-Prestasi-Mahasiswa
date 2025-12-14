@@ -1,5 +1,6 @@
 package database
 
+// #1 proses: import library yang diperlukan untuk context, database, fmt, log, time, dan MongoDB driver
 import (
 	"context"
 	"database/sql"
@@ -210,14 +211,16 @@ FROM roles r
 WHERE r.name = 'Admin'
 LIMIT 1;`
 
-// RunMigrations menjalankan migrasi PostgreSQL dan MongoDB secara berurutan.
+// #2 proses: jalankan migrasi PostgreSQL dan MongoDB secara berurutan
 func RunMigrations(postgresDB *sql.DB, mongoDB *mongo.Database) error {
 	log.Println("Starting database migrations...")
 
+	// #2a proses: jalankan migrasi PostgreSQL terlebih dahulu
 	if err := runPostgresMigrations(postgresDB); err != nil {
 		return fmt.Errorf("postgres migrations failed: %w", err)
 	}
 
+	// #2b proses: jalankan migrasi MongoDB setelah PostgreSQL selesai
 	if err := runMongoMigrations(mongoDB); err != nil {
 		return fmt.Errorf("mongo migrations failed: %w", err)
 	}
@@ -226,24 +229,29 @@ func RunMigrations(postgresDB *sql.DB, mongoDB *mongo.Database) error {
 	return nil
 }
 
+// #3 proses: jalankan migrasi PostgreSQL dengan schema dan sample data dalam transaction
 func runPostgresMigrations(db *sql.DB) error {
 	log.Println("Running PostgreSQL schema and seed migrations...")
 
+	// #3a proses: mulai transaction untuk memastikan semua operasi atomic
 	tx, err := db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
 
+	// #3b proses: eksekusi schema SQL untuk create tables, types, indexes, dan triggers
 	if _, err := tx.Exec(postgresSchemaSQL); err != nil {
 		tx.Rollback()
 		return fmt.Errorf("executing schema SQL: %w", err)
 	}
 
+	// #3c proses: eksekusi sample data SQL untuk insert initial data
 	if _, err := tx.Exec(postgresSampleDataSQL); err != nil {
 		tx.Rollback()
 		return fmt.Errorf("executing sample data SQL: %w", err)
 	}
 
+	// #3d proses: commit transaction jika semua operasi berhasil
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit transaction: %w", err)
 	}
@@ -252,16 +260,20 @@ func runPostgresMigrations(db *sql.DB) error {
 	return nil
 }
 
+// #4 proses: jalankan migrasi MongoDB untuk setup collection dan indexes
 func runMongoMigrations(db *mongo.Database) error {
 	log.Println("Running MongoDB migrations...")
 
+	// #4a proses: buat context dengan timeout 30 detik untuk operasi migration
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	// #4b proses: drop collection achievements jika sudah ada untuk reset
 	if err := dropCollectionIfExists(ctx, db, "achievements"); err != nil {
 		return err
 	}
 
+	// #4c proses: buat indexes untuk collection achievements
 	if err := createAchievementIndexes(ctx, db); err != nil {
 		return err
 	}
@@ -270,16 +282,20 @@ func runMongoMigrations(db *mongo.Database) error {
 	return nil
 }
 
+// #5 proses: drop collection MongoDB jika sudah ada
 func dropCollectionIfExists(ctx context.Context, db *mongo.Database, collectionName string) error {
+	// #5a proses: cek apakah collection sudah ada
 	names, err := db.ListCollectionNames(ctx, bson.M{"name": collectionName})
 	if err != nil {
 		return fmt.Errorf("list collections for %s: %w", collectionName, err)
 	}
 
+	// #5b proses: jika collection tidak ada, tidak perlu drop
 	if len(names) == 0 {
 		return nil
 	}
 
+	// #5c proses: drop collection jika ada
 	if err := db.Collection(collectionName).Drop(ctx); err != nil {
 		return fmt.Errorf("drop collection %s: %w", collectionName, err)
 	}
@@ -288,9 +304,12 @@ func dropCollectionIfExists(ctx context.Context, db *mongo.Database, collectionN
 	return nil
 }
 
+// #6 proses: buat indexes untuk collection achievements di MongoDB
 func createAchievementIndexes(ctx context.Context, db *mongo.Database) error {
+	// #6a proses: ambil collection achievements
 	collection := db.Collection("achievements")
 
+	// #6b proses: definisikan index models untuk studentId, achievementType, createdAt, dan text search
 	indexModels := []mongo.IndexModel{
 		{
 			Keys:    bson.D{{Key: "studentId", Value: 1}},
@@ -313,6 +332,7 @@ func createAchievementIndexes(ctx context.Context, db *mongo.Database) error {
 		},
 	}
 
+	// #6c proses: create semua indexes sekaligus
 	if _, err := collection.Indexes().CreateMany(ctx, indexModels); err != nil {
 		return fmt.Errorf("create achievement indexes: %w", err)
 	}

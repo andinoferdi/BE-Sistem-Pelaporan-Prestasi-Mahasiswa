@@ -1,5 +1,6 @@
 package service
 
+// #1 proses: import library yang diperlukan untuk context, database, errors, dan utils
 import (
 	"context"
 	"database/sql"
@@ -9,6 +10,7 @@ import (
 	utilspostgre "sistem-pelaporan-prestasi-mahasiswa/utils/postgre"
 )
 
+// #2 proses: definisikan interface untuk operasi user
 type IUserService interface {
 	GetAllUsers(ctx context.Context) ([]model.User, error)
 	GetUserByID(ctx context.Context, id string) (*model.User, error)
@@ -19,6 +21,7 @@ type IUserService interface {
 	GetAllRoles(ctx context.Context) ([]model.Role, error)
 }
 
+// #3 proses: struct service untuk user dengan dependency user, student, lecturer repository dan database connection
 type UserService struct {
 	userRepo     repository.IUserRepository
 	studentRepo  repository.IStudentRepository
@@ -26,6 +29,7 @@ type UserService struct {
 	db           *sql.DB
 }
 
+// #4 proses: constructor untuk membuat instance UserService baru
 func NewUserService(userRepo repository.IUserRepository, studentRepo repository.IStudentRepository, lecturerRepo repository.ILecturerRepository, db *sql.DB) IUserService {
 	return &UserService{
 		userRepo:     userRepo,
@@ -35,18 +39,23 @@ func NewUserService(userRepo repository.IUserRepository, studentRepo repository.
 	}
 }
 
+// #5 proses: ambil semua user dari database
 func (s *UserService) GetAllUsers(ctx context.Context) ([]model.User, error) {
 	return s.userRepo.GetAllUsers(ctx)
 }
 
+// #6 proses: ambil user berdasarkan user ID
 func (s *UserService) GetUserByID(ctx context.Context, id string) (*model.User, error) {
+	// #6a proses: validasi user ID tidak kosong, lalu ambil user
 	if id == "" {
 		return nil, errors.New("user ID wajib diisi")
 	}
 	return s.userRepo.FindUserByID(ctx, id)
 }
 
+// #7 proses: buat user baru dengan transaction, bisa sekaligus buat student atau lecturer profile
 func (s *UserService) CreateUser(ctx context.Context, req model.CreateUserRequest) (*model.User, error) {
+	// #7a proses: validasi semua field wajib tidak kosong
 	if req.Username == "" {
 		return nil, errors.New("username wajib diisi")
 	}
@@ -63,6 +72,7 @@ func (s *UserService) CreateUser(ctx context.Context, req model.CreateUserReques
 		return nil, errors.New("role ID wajib diisi")
 	}
 
+	// #7b proses: cek email dan username belum digunakan
 	existingUser, _ := s.userRepo.FindUserByEmail(ctx, req.Email)
 	if existingUser != nil {
 		return nil, errors.New("email sudah digunakan")
@@ -73,11 +83,13 @@ func (s *UserService) CreateUser(ctx context.Context, req model.CreateUserReques
 		return nil, errors.New("username sudah digunakan")
 	}
 
+	// #7c proses: hash password sebelum disimpan
 	passwordHash, err := utilspostgre.HashPassword(req.Password)
 	if err != nil {
 		return nil, errors.New("error hashing password: " + err.Error())
 	}
 
+	// #7d proses: ambil role name untuk menentukan apakah perlu buat profile
 	roleName, err := s.userRepo.GetRoleName(ctx, req.RoleID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -86,12 +98,14 @@ func (s *UserService) CreateUser(ctx context.Context, req model.CreateUserReques
 		return nil, errors.New("error mengambil role name: " + err.Error())
 	}
 
+	// #7e proses: mulai transaction untuk operasi multi-step
 	tx, err := s.db.Begin()
 	if err != nil {
 		return nil, errors.New("error memulai transaction: " + err.Error())
 	}
 	defer tx.Rollback()
 
+	// #7f proses: buat user object dengan data dari request
 	user := model.User{
 		Username:     req.Username,
 		Email:        req.Email,
@@ -101,16 +115,19 @@ func (s *UserService) CreateUser(ctx context.Context, req model.CreateUserReques
 		IsActive:     true,
 	}
 
+	// #7g proses: cast repository ke concrete type untuk akses method WithTx
 	userRepoImpl, ok := s.userRepo.(*repository.UserRepository)
 	if !ok {
 		return nil, errors.New("error casting user repository")
 	}
 
+	// #7h proses: buat user dalam transaction
 	createdUser, err := userRepoImpl.CreateUserWithTx(ctx, tx, user)
 	if err != nil {
 		return nil, errors.New("error membuat user: " + err.Error())
 	}
 
+	// #7i proses: jika role Mahasiswa dan ada student ID, buat student profile dalam transaction
 	if roleName == "Mahasiswa" && req.StudentID != "" {
 		studentReq := model.CreateStudentRequest{
 			UserID:       createdUser.ID,
@@ -129,6 +146,7 @@ func (s *UserService) CreateUser(ctx context.Context, req model.CreateUserReques
 		}
 	}
 
+	// #7j proses: jika role Dosen Wali dan ada lecturer ID, buat lecturer profile dalam transaction
 	if roleName == "Dosen Wali" && req.LecturerID != "" {
 		lecturerReq := model.CreateLecturerRequest{
 			UserID:     createdUser.ID,
@@ -145,6 +163,7 @@ func (s *UserService) CreateUser(ctx context.Context, req model.CreateUserReques
 		}
 	}
 
+	// #7k proses: commit transaction jika semua operasi berhasil
 	if err := tx.Commit(); err != nil {
 		return nil, errors.New("error commit transaction: " + err.Error())
 	}
@@ -152,11 +171,14 @@ func (s *UserService) CreateUser(ctx context.Context, req model.CreateUserReques
 	return createdUser, nil
 }
 
+// #8 proses: update user dengan validasi email, username, dan role change
 func (s *UserService) UpdateUser(ctx context.Context, id string, req model.UpdateUserRequest) (*model.User, error) {
+	// #8a proses: validasi user ID tidak kosong
 	if id == "" {
 		return nil, errors.New("user ID wajib diisi")
 	}
 
+	// #8b proses: cari user yang akan diupdate
 	existingUser, err := s.userRepo.FindUserByID(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -165,6 +187,7 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, req model.Updat
 		return nil, err
 	}
 
+	// #8c proses: validasi semua field wajib tidak kosong
 	if req.Username == "" {
 		return nil, errors.New("username wajib diisi")
 	}
@@ -178,6 +201,7 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, req model.Updat
 		return nil, errors.New("role ID wajib diisi")
 	}
 
+	// #8d proses: cek email dan username tidak digunakan oleh user lain
 	userByEmail, _ := s.userRepo.FindUserByEmail(ctx, req.Email)
 	if userByEmail != nil && userByEmail.ID != id {
 		return nil, errors.New("email sudah digunakan oleh user lain")
@@ -188,6 +212,7 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, req model.Updat
 		return nil, errors.New("username sudah digunakan oleh user lain")
 	}
 
+	// #8e proses: ambil role name baru
 	roleName, err := s.userRepo.GetRoleName(ctx, req.RoleID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -196,11 +221,13 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, req model.Updat
 		return nil, errors.New("error mengambil role name: " + err.Error())
 	}
 
+	// #8f proses: set isActive dari request atau gunakan nilai existing
 	isActive := existingUser.IsActive
 	if req.IsActive != nil {
 		isActive = *req.IsActive
 	}
 
+	// #8g proses: buat user object dengan data update
 	user := model.User{
 		Username: req.Username,
 		Email:    req.Email,
@@ -209,11 +236,13 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, req model.Updat
 		IsActive: isActive,
 	}
 
+	// #8h proses: update user di database
 	updatedUser, err := s.userRepo.UpdateUser(ctx, id, user)
 	if err != nil {
 		return nil, errors.New("error mengupdate user: " + err.Error())
 	}
 
+	// #8i proses: jika role berubah, cek apakah user sudah punya profile yang harus dihapus dulu
 	oldRoleName, _ := s.userRepo.GetRoleName(ctx, existingUser.RoleID)
 	if oldRoleName != roleName {
 		if oldRoleName == "Mahasiswa" {
@@ -232,11 +261,14 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, req model.Updat
 	return updatedUser, nil
 }
 
+// #9 proses: hapus user dengan validasi dosen wali tidak punya mahasiswa bimbingan
 func (s *UserService) DeleteUser(ctx context.Context, id string) error {
+	// #9a proses: validasi user ID tidak kosong
 	if id == "" {
 		return errors.New("user ID wajib diisi")
 	}
 
+	// #9b proses: cari user yang akan dihapus
 	existingUser, err := s.userRepo.FindUserByID(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -245,6 +277,7 @@ func (s *UserService) DeleteUser(ctx context.Context, id string) error {
 		return err
 	}
 
+	// #9c proses: jika user adalah dosen wali, cek apakah masih punya mahasiswa bimbingan
 	roleName, err := s.userRepo.GetRoleName(ctx, existingUser.RoleID)
 	if err == nil {
 		if roleName == "Dosen Wali" {
@@ -258,6 +291,7 @@ func (s *UserService) DeleteUser(ctx context.Context, id string) error {
 		}
 	}
 
+	// #9d proses: hapus user dari database
 	err = s.userRepo.DeleteUser(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -269,7 +303,9 @@ func (s *UserService) DeleteUser(ctx context.Context, id string) error {
 	return nil
 }
 
+// #10 proses: update role user dengan validasi profile dan mahasiswa bimbingan
 func (s *UserService) UpdateUserRole(ctx context.Context, id string, roleID string) error {
+	// #10a proses: validasi user ID dan role ID tidak kosong
 	if id == "" {
 		return errors.New("user ID wajib diisi")
 	}
@@ -277,6 +313,7 @@ func (s *UserService) UpdateUserRole(ctx context.Context, id string, roleID stri
 		return errors.New("role ID wajib diisi")
 	}
 
+	// #10b proses: cari user yang akan diupdate
 	existingUser, err := s.userRepo.FindUserByID(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -285,6 +322,7 @@ func (s *UserService) UpdateUserRole(ctx context.Context, id string, roleID stri
 		return err
 	}
 
+	// #10c proses: ambil role name lama dan baru
 	oldRoleName, err := s.userRepo.GetRoleName(ctx, existingUser.RoleID)
 	if err != nil {
 		return errors.New("error mengambil role name: " + err.Error())
@@ -298,16 +336,19 @@ func (s *UserService) UpdateUserRole(ctx context.Context, id string, roleID stri
 		return errors.New("error mengambil role name: " + err.Error())
 	}
 
+	// #10d proses: jika role tidak berubah, tidak perlu update
 	if oldRoleName == roleName {
 		return nil
 	}
 
+	// #10e proses: jika role lama adalah Mahasiswa, cek apakah sudah punya profile
 	if oldRoleName == "Mahasiswa" {
 		_, err = s.studentRepo.GetStudentByUserID(ctx, id)
 		if err == nil {
 			return errors.New("tidak dapat mengubah role user yang sudah memiliki profil mahasiswa. Hapus profil terlebih dahulu")
 		}
 	} else if oldRoleName == "Dosen Wali" {
+		// #10f proses: jika role lama adalah Dosen Wali, cek apakah masih punya mahasiswa bimbingan
 		lecturer, err := s.lecturerRepo.GetLecturerByUserID(ctx, id)
 		if err == nil {
 			students, _ := s.studentRepo.GetStudentsByAdvisorID(ctx, lecturer.ID)
@@ -317,6 +358,7 @@ func (s *UserService) UpdateUserRole(ctx context.Context, id string, roleID stri
 		}
 	}
 
+	// #10g proses: update role user di database
 	err = s.userRepo.UpdateUserRole(ctx, id, roleID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -328,6 +370,7 @@ func (s *UserService) UpdateUserRole(ctx context.Context, id string, roleID stri
 	return nil
 }
 
+// #11 proses: ambil semua role dari database
 func (s *UserService) GetAllRoles(ctx context.Context) ([]model.Role, error) {
 	return s.userRepo.GetAllRoles(ctx)
 }

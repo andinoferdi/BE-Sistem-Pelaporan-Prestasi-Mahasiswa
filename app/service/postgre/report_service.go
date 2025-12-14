@@ -1,5 +1,6 @@
 package service
 
+// #1 proses: import library yang diperlukan untuk context, database, errors, dan time
 import (
 	"context"
 	"database/sql"
@@ -10,6 +11,7 @@ import (
 	"time"
 )
 
+// #2 proses: definisikan interface untuk operasi laporan dan statistik
 type IReportService interface {
 	GetStatistics(ctx context.Context, userID string, roleID string) (map[string]interface{}, error)
 	GetStudentReport(ctx context.Context, studentID string) (map[string]interface{}, error)
@@ -18,6 +20,7 @@ type IReportService interface {
 	GetCurrentLecturerReport(ctx context.Context, userID string) (map[string]interface{}, error)
 }
 
+// #3 proses: struct service untuk laporan dengan dependency achievement MongoDB, achievement reference PostgreSQL, student, user, dan lecturer repository
 type ReportService struct {
 	achievementRepo    repositorymongo.IAchievementRepository
 	achievementRefRepo repositorypostgre.IAchievementReferenceRepository
@@ -26,6 +29,7 @@ type ReportService struct {
 	lecturerRepo       repositorypostgre.ILecturerRepository
 }
 
+// #4 proses: constructor untuk membuat instance ReportService baru
 func NewReportService(
 	achievementRepo repositorymongo.IAchievementRepository,
 	achievementRefRepo repositorypostgre.IAchievementReferenceRepository,
@@ -42,7 +46,9 @@ func NewReportService(
 	}
 }
 
+// #5 proses: ambil statistik achievement dengan filtering berdasarkan role user
 func (s *ReportService) GetStatistics(ctx context.Context, userID string, roleID string) (map[string]interface{}, error) {
+	// #5a proses: ambil role name untuk menentukan filter yang sesuai
 	roleName, err := s.userRepo.GetRoleName(ctx, roleID)
 	if err != nil {
 		return nil, errors.New("error mengambil role name: " + err.Error())
@@ -51,6 +57,7 @@ func (s *ReportService) GetStatistics(ctx context.Context, userID string, roleID
 	var studentIDFilter string
 	var advisorIDFilter string
 
+	// #5b proses: set filter berdasarkan role, Mahasiswa filter milik sendiri, Dosen Wali filter mahasiswa bimbingan
 	if roleName == "Mahasiswa" {
 		student, err := s.studentRepo.GetStudentByUserID(ctx, userID)
 		if err != nil {
@@ -70,11 +77,13 @@ func (s *ReportService) GetStatistics(ctx context.Context, userID string, roleID
 		return nil, errors.New("akses ditolak. Role tidak memiliki akses untuk melihat statistik")
 	}
 
+	// #5c proses: ambil statistik per tipe achievement dari MongoDB
 	byType, err := s.achievementRepo.GetAchievementsByType(ctx)
 	if err != nil {
 		return nil, errors.New("error mengambil statistik per tipe: " + err.Error())
 	}
 
+	// #5d proses: filter statistik per tipe berdasarkan student ID atau advisor ID
 	if studentIDFilter != "" {
 		filteredByType := make(map[string]int)
 		achievements, err := s.achievementRepo.GetAchievementsByStudentID(ctx, studentIDFilter)
@@ -100,6 +109,7 @@ func (s *ReportService) GetStatistics(ctx context.Context, userID string, roleID
 		}
 	}
 
+	// #5e proses: ambil statistik per periode dari 1 tahun terakhir
 	startDate := time.Now().AddDate(-1, 0, 0)
 	endDate := time.Now()
 	byPeriod, err := s.achievementRefRepo.GetAchievementsByPeriod(ctx, startDate, endDate)
@@ -107,6 +117,7 @@ func (s *ReportService) GetStatistics(ctx context.Context, userID string, roleID
 		return nil, errors.New("error mengambil statistik per periode: " + err.Error())
 	}
 
+	// #5f proses: filter statistik per periode berdasarkan student ID atau advisor ID
 	if studentIDFilter != "" {
 		references, err := s.achievementRefRepo.GetAchievementReferenceByStudentID(ctx, studentIDFilter)
 		if err == nil {
@@ -129,6 +140,7 @@ func (s *ReportService) GetStatistics(ctx context.Context, userID string, roleID
 		}
 	}
 
+	// #5g proses: ambil top students berdasarkan points dengan filtering
 	var topStudents []struct {
 		StudentID        string `bson:"_id" json:"student_id"`
 		TotalPoints      int    `bson:"totalPoints" json:"total_points"`
@@ -136,6 +148,7 @@ func (s *ReportService) GetStatistics(ctx context.Context, userID string, roleID
 	}
 
 	if studentIDFilter != "" {
+		// #5h proses: jika filter student, ambil ranking student tersebut saja
 		allTopStudents, err := s.achievementRepo.GetTopStudentsByPoints(ctx, 1000)
 		if err == nil {
 			for _, topStudent := range allTopStudents {
@@ -150,6 +163,7 @@ func (s *ReportService) GetStatistics(ctx context.Context, userID string, roleID
 			}
 		}
 	} else if advisorIDFilter != "" {
+		// #5i proses: jika filter advisor, ambil ranking mahasiswa bimbingan saja
 		students, err := s.studentRepo.GetStudentsByAdvisorID(ctx, advisorIDFilter)
 		if err == nil {
 			studentIDMap := make(map[string]bool)
@@ -166,6 +180,7 @@ func (s *ReportService) GetStatistics(ctx context.Context, userID string, roleID
 			}
 		}
 	} else {
+		// #5j proses: admin ambil top 10 students
 		topStudentsResult, err := s.achievementRepo.GetTopStudentsByPoints(ctx, 10)
 		if err != nil {
 			return nil, errors.New("error mengambil top mahasiswa: " + err.Error())
@@ -183,11 +198,13 @@ func (s *ReportService) GetStatistics(ctx context.Context, userID string, roleID
 		}
 	}
 
+	// #5k proses: ambil distribusi level kompetisi dari MongoDB
 	competitionLevelDist, err := s.achievementRepo.GetCompetitionLevelDistribution(ctx)
 	if err != nil {
 		return nil, errors.New("error mengambil distribusi tingkat kompetisi: " + err.Error())
 	}
 
+	// #5l proses: filter distribusi level kompetisi berdasarkan student ID atau advisor ID
 	if studentIDFilter != "" {
 		achievements, err := s.achievementRepo.GetAchievementsByStudentID(ctx, studentIDFilter)
 		if err == nil {
@@ -219,6 +236,7 @@ func (s *ReportService) GetStatistics(ctx context.Context, userID string, roleID
 		}
 	}
 
+	// #5m proses: enrich top students dengan nama student dari database
 	topStudentsWithNames := make([]map[string]interface{}, 0)
 	for _, topStudent := range topStudents {
 		student, err := s.studentRepo.GetStudentByID(ctx, topStudent.StudentID)
@@ -239,6 +257,7 @@ func (s *ReportService) GetStatistics(ctx context.Context, userID string, roleID
 		})
 	}
 
+	// #5n proses: build response dengan semua statistik
 	return map[string]interface{}{
 		"status": "success",
 		"data": map[string]interface{}{
@@ -250,11 +269,14 @@ func (s *ReportService) GetStatistics(ctx context.Context, userID string, roleID
 	}, nil
 }
 
+// #6 proses: ambil laporan lengkap untuk student tertentu
 func (s *ReportService) GetStudentReport(ctx context.Context, studentID string) (map[string]interface{}, error) {
+	// #6a proses: validasi student ID tidak kosong
 	if studentID == "" {
 		return nil, errors.New("student ID wajib diisi")
 	}
 
+	// #6b proses: ambil student dan user data
 	student, err := s.studentRepo.GetStudentByID(ctx, studentID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -268,6 +290,7 @@ func (s *ReportService) GetStudentReport(ctx context.Context, studentID string) 
 		return nil, errors.New("error mengambil data user: " + err.Error())
 	}
 
+	// #6c proses: ambil achievements dari MongoDB dan references dari PostgreSQL
 	achievements, err := s.achievementRepo.GetAchievementsByStudentID(ctx, studentID)
 	if err != nil {
 		return nil, errors.New("error mengambil achievements: " + err.Error())
@@ -278,11 +301,13 @@ func (s *ReportService) GetStudentReport(ctx context.Context, studentID string) 
 		return nil, errors.New("error mengambil achievement references: " + err.Error())
 	}
 
+	// #6d proses: buat map reference untuk lookup cepat
 	referenceMap := make(map[string]modelpostgre.AchievementReference)
 	for _, ref := range references {
 		referenceMap[ref.MongoAchievementID] = ref
 	}
 
+	// #6e proses: hitung statistik dan build achievement details
 	totalPoints := 0
 	verifiedCount := 0
 	byType := make(map[string]int)
@@ -311,6 +336,7 @@ func (s *ReportService) GetStudentReport(ctx context.Context, studentID string) 
 		})
 	}
 
+	// #6f proses: build response dengan data student, statistik, dan list achievements
 	return map[string]interface{}{
 		"status": "success",
 		"data": map[string]interface{}{
@@ -330,11 +356,14 @@ func (s *ReportService) GetStudentReport(ctx context.Context, studentID string) 
 	}, nil
 }
 
+// #7 proses: ambil laporan lengkap untuk lecturer dengan statistik mahasiswa bimbingan
 func (s *ReportService) GetLecturerReport(ctx context.Context, lecturerID string) (map[string]interface{}, error) {
+	// #7a proses: validasi lecturer ID tidak kosong
 	if lecturerID == "" {
 		return nil, errors.New("lecturer ID wajib diisi")
 	}
 
+	// #7b proses: ambil lecturer dan user data
 	lecturer, err := s.lecturerRepo.GetLecturerByID(ctx, lecturerID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -348,11 +377,13 @@ func (s *ReportService) GetLecturerReport(ctx context.Context, lecturerID string
 		return nil, errors.New("error mengambil data user: " + err.Error())
 	}
 
+	// #7c proses: ambil semua mahasiswa bimbingan
 	students, err := s.studentRepo.GetStudentsByAdvisorID(ctx, lecturerID)
 	if err != nil {
 		return nil, errors.New("error mengambil mahasiswa bimbingan: " + err.Error())
 	}
 
+	// #7d proses: hitung statistik dari semua mahasiswa bimbingan
 	totalPoints := 0
 	totalAchievements := 0
 	byType := make(map[string]int)
@@ -361,6 +392,7 @@ func (s *ReportService) GetLecturerReport(ctx context.Context, lecturerID string
 		AchievementCount int
 	})
 
+	// #7e proses: loop semua mahasiswa bimbingan dan hitung statistik per student
 	for _, student := range students {
 		achievements, err := s.achievementRepo.GetAchievementsByStudentID(ctx, student.ID)
 		if err != nil {
@@ -372,6 +404,7 @@ func (s *ReportService) GetLecturerReport(ctx context.Context, lecturerID string
 			continue
 		}
 
+		// #7f proses: buat map reference, filter yang status bukan deleted
 		referenceMap := make(map[string]modelpostgre.AchievementReference)
 		for _, ref := range references {
 			if ref.Status != "deleted" {
@@ -382,6 +415,7 @@ func (s *ReportService) GetLecturerReport(ctx context.Context, lecturerID string
 		studentPoints := 0
 		studentAchievementCount := 0
 
+		// #7g proses: hitung points dan count per student, lalu agregasi ke total
 		for _, achievement := range achievements {
 			_, exists := referenceMap[achievement.ID.Hex()]
 			if !exists {
@@ -404,6 +438,7 @@ func (s *ReportService) GetLecturerReport(ctx context.Context, lecturerID string
 		}
 	}
 
+	// #7h proses: buat list top advisees dari student stats
 	type TopAdvisee struct {
 		StudentID        string
 		TotalPoints      int
@@ -419,6 +454,7 @@ func (s *ReportService) GetLecturerReport(ctx context.Context, lecturerID string
 		})
 	}
 
+	// #7i proses: sort top advisees berdasarkan total points descending
 	for i := 0; i < len(topAdviseesList)-1; i++ {
 		for j := i + 1; j < len(topAdviseesList); j++ {
 			if topAdviseesList[i].TotalPoints < topAdviseesList[j].TotalPoints {
@@ -427,10 +463,12 @@ func (s *ReportService) GetLecturerReport(ctx context.Context, lecturerID string
 		}
 	}
 
+	// #7j proses: ambil top 10 advisees saja
 	if len(topAdviseesList) > 10 {
 		topAdviseesList = topAdviseesList[:10]
 	}
 
+	// #7k proses: enrich top advisees dengan nama student
 	topAdviseesWithNames := make([]map[string]interface{}, 0)
 	for _, topAdvisee := range topAdviseesList {
 		student, err := s.studentRepo.GetStudentByID(ctx, topAdvisee.StudentID)
@@ -451,6 +489,7 @@ func (s *ReportService) GetLecturerReport(ctx context.Context, lecturerID string
 		})
 	}
 
+	// #7l proses: build response dengan data lecturer, statistik, dan top advisees
 	return map[string]interface{}{
 		"status": "success",
 		"data": map[string]interface{}{
@@ -471,11 +510,14 @@ func (s *ReportService) GetLecturerReport(ctx context.Context, lecturerID string
 	}, nil
 }
 
+// #8 proses: ambil laporan student untuk user yang sedang login
 func (s *ReportService) GetCurrentStudentReport(ctx context.Context, userID string) (map[string]interface{}, error) {
+	// #8a proses: validasi user ID tidak kosong
 	if userID == "" {
 		return nil, errors.New("user ID wajib diisi")
 	}
 
+	// #8b proses: ambil student berdasarkan user ID, lalu panggil GetStudentReport
 	student, err := s.studentRepo.GetStudentByUserID(ctx, userID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -487,11 +529,14 @@ func (s *ReportService) GetCurrentStudentReport(ctx context.Context, userID stri
 	return s.GetStudentReport(ctx, student.ID)
 }
 
+// #9 proses: ambil laporan lecturer untuk user yang sedang login
 func (s *ReportService) GetCurrentLecturerReport(ctx context.Context, userID string) (map[string]interface{}, error) {
+	// #9a proses: validasi user ID tidak kosong
 	if userID == "" {
 		return nil, errors.New("user ID wajib diisi")
 	}
 
+	// #9b proses: ambil lecturer berdasarkan user ID, lalu panggil GetLecturerReport
 	lecturer, err := s.userRepo.GetLecturerByUserID(ctx, userID)
 	if err != nil {
 		if err == sql.ErrNoRows {
