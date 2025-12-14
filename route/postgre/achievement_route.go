@@ -247,10 +247,10 @@ func AchievementRoutes(app *fiber.App, achievementService servicepostgre.IAchiev
 		}
 
 		allowedTypes := map[string]bool{
-			"application/pdf":       true,
-			"image/jpeg":            true,
-			"image/png":             true,
-			"application/msword":    true,
+			"application/pdf":    true,
+			"image/jpeg":         true,
+			"image/png":          true,
+			"application/msword": true,
 			"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
 		}
 
@@ -423,10 +423,42 @@ func AchievementRoutes(app *fiber.App, achievementService servicepostgre.IAchiev
 	})
 
 	achievements.Get("/:id/history", middlewarepostgre.PermissionRequired(db, "achievement:read"), func(c *fiber.Ctx) error {
-		return c.Status(501).JSON(fiber.Map{
-			"error":   "Fitur belum diimplementasikan",
-			"message": "Fitur ini belum diimplementasikan.",
-		})
+		userID, ok := c.Locals("user_id").(string)
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error":   "Tidak diizinkan",
+				"message": "User ID tidak ditemukan. Silakan login ulang.",
+			})
+		}
+
+		roleID, ok := c.Locals("role_id").(string)
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error":   "Tidak diizinkan",
+				"message": "Role ID tidak ditemukan. Silakan login ulang.",
+			})
+		}
+
+		mongoID := c.Params("id")
+		if mongoID == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":   "Permintaan tidak valid",
+				"message": "ID prestasi wajib diisi.",
+			})
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		response, err := achievementService.GetAchievementHistory(ctx, userID, roleID, mongoID)
+		if err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error":   "Gagal mengambil history",
+				"message": err.Error(),
+			})
+		}
+
+		return c.JSON(response)
 	})
 
 	achievements.Delete("/:id", middlewarepostgre.PermissionRequired(db, "achievement:delete"), func(c *fiber.Ctx) error {

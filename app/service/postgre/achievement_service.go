@@ -25,6 +25,7 @@ type IAchievementService interface {
 	UpdateAchievement(ctx context.Context, userID string, roleID string, mongoID string, req modelmongo.UpdateAchievementRequest) (map[string]interface{}, error)
 	GetAchievementStats(ctx context.Context) (map[string]interface{}, error)
 	UploadFile(ctx context.Context, userID string, roleID string, mongoID string, fileName string, fileURL string, fileType string) (*modelmongo.Attachment, error)
+	GetAchievementHistory(ctx context.Context, userID string, roleID string, mongoID string) (map[string]interface{}, error)
 }
 
 type AchievementService struct {
@@ -856,4 +857,127 @@ func (s *AchievementService) UploadFile(ctx context.Context, userID string, role
 	}
 
 	return &attachment, nil
+}
+
+func (s *AchievementService) GetAchievementHistory(ctx context.Context, userID string, roleID string, mongoID string) (map[string]interface{}, error) {
+	ref, err := s.achievementRefRepo.GetAchievementReferenceByMongoID(ctx, mongoID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("prestasi tidak ditemukan")
+		}
+		return nil, err
+	}
+
+	roleName, err := s.userRepo.GetRoleName(ctx, roleID)
+	if err != nil {
+		return nil, errors.New("error mengambil role name: " + err.Error())
+	}
+
+	if roleName == "Mahasiswa" {
+		studentID, err := s.studentRepo.GetStudentIDByUserID(ctx, userID)
+		if err != nil {
+			return nil, errors.New("error mengambil data mahasiswa: " + err.Error())
+		}
+
+		if ref.StudentID != studentID {
+			return nil, errors.New("akses ditolak. Anda hanya dapat melihat history prestasi milik Anda sendiri")
+		}
+	} else if roleName == "Dosen Wali" {
+		lecturer, err := s.userRepo.GetLecturerByUserID(ctx, userID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return nil, errors.New("data dosen wali tidak ditemukan. Pastikan user memiliki profil dosen wali")
+			}
+			return nil, err
+		}
+
+		student, err := s.studentRepo.GetStudentByID(ctx, ref.StudentID)
+		if err != nil {
+			return nil, errors.New("error mengambil data student: " + err.Error())
+		}
+
+		if student.AdvisorID != lecturer.ID {
+			return nil, errors.New("akses ditolak. Anda hanya dapat melihat history prestasi mahasiswa bimbingan Anda")
+		}
+	} else if roleName != "Admin" {
+		return nil, errors.New("akses ditolak. Role tidak memiliki akses untuk melihat history prestasi")
+	}
+
+	var history []map[string]interface{}
+
+	draftEntry := map[string]interface{}{
+		"status":          modelpostgre.AchievementStatusDraft,
+		"changed_at":      ref.CreatedAt.Format(time.RFC3339),
+		"changed_by":      nil,
+		"changed_by_name": nil,
+		"note":            nil,
+	}
+	history = append(history, draftEntry)
+
+	if ref.SubmittedAt != nil {
+		submittedEntry := map[string]interface{}{
+			"status":          modelpostgre.AchievementStatusSubmitted,
+			"changed_at":      ref.SubmittedAt.Format(time.RFC3339),
+			"changed_by":      nil,
+			"changed_by_name": nil,
+			"note":            nil,
+		}
+		history = append(history, submittedEntry)
+	}
+
+	if ref.Status == modelpostgre.AchievementStatusVerified && ref.VerifiedAt != nil {
+		var verifiedByName *string
+		if ref.VerifiedBy != nil {
+			verifiedByUser, err := s.userRepo.FindUserByID(ctx, *ref.VerifiedBy)
+			if err == nil && verifiedByUser != nil {
+				name := verifiedByUser.FullName
+				verifiedByName = &name
+			}
+		}
+
+		verifiedEntry := map[string]interface{}{
+			"status":          modelpostgre.AchievementStatusVerified,
+			"changed_at":      ref.VerifiedAt.Format(time.RFC3339),
+			"changed_by":      ref.VerifiedBy,
+			"changed_by_name": verifiedByName,
+			"note":            nil,
+		}
+		history = append(history, verifiedEntry)
+	}
+
+	if ref.Status == modelpostgre.AchievementStatusRejected {
+		var verifiedByName *string
+		if ref.VerifiedBy != nil {
+			verifiedByUser, err := s.userRepo.FindUserByID(ctx, *ref.VerifiedBy)
+			if err == nil && verifiedByUser != nil {
+				name := verifiedByUser.FullName
+				verifiedByName = &name
+			}
+		}
+
+		rejectedEntry := map[string]interface{}{
+			"status":          modelpostgre.AchievementStatusRejected,
+			"changed_at":      ref.UpdatedAt.Format(time.RFC3339),
+			"changed_by":      ref.VerifiedBy,
+			"changed_by_name": verifiedByName,
+			"note":            ref.RejectionNote,
+		}
+		history = append(history, rejectedEntry)
+	}
+
+	if ref.Status == modelpostgre.AchievementStatusDeleted {
+		deletedEntry := map[string]interface{}{
+			"status":          modelpostgre.AchievementStatusDeleted,
+			"changed_at":      ref.UpdatedAt.Format(time.RFC3339),
+			"changed_by":      nil,
+			"changed_by_name": nil,
+			"note":            nil,
+		}
+		history = append(history, deletedEntry)
+	}
+
+	return map[string]interface{}{
+		"status": "success",
+		"data":   history,
+	}, nil
 }
