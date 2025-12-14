@@ -1,6 +1,17 @@
 // #1 proses: package main sebagai entry point aplikasi
 package main
 
+// @title Sistem Pelaporan Prestasi Mahasiswa API
+// @version 1.0
+// @description API untuk sistem pelaporan prestasi mahasiswa dengan dukungan multi-role (Admin, Dosen Wali, Mahasiswa) dan field prestasi yang fleksibel
+// @host localhost:3001
+// @BasePath /api/v1
+// @schemes http
+// @securityDefinitions.apikey Bearer
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token. Example: "Bearer {token}"
+
 // #2 proses: import library yang diperlukan untuk log, os, repository, service, config, database, middleware, route, dan uuid
 import (
 	"log"
@@ -11,6 +22,7 @@ import (
 	"sistem-pelaporan-prestasi-mahasiswa/config"
 	configmongo "sistem-pelaporan-prestasi-mahasiswa/config/mongo"
 	"sistem-pelaporan-prestasi-mahasiswa/database"
+	_ "sistem-pelaporan-prestasi-mahasiswa/docs"
 	"sistem-pelaporan-prestasi-mahasiswa/middleware"
 	routepostgre "sistem-pelaporan-prestasi-mahasiswa/route/postgre"
 
@@ -44,6 +56,9 @@ func main() {
 	// #4f proses: inisialisasi Fiber app dengan config MongoDB
 	app := configmongo.NewApp()
 	app.Use(middleware.LoggerMiddleware)
+
+	// #4f1 proses: setup Swagger UI untuk dokumentasi API dengan config untuk hide models dan tag order
+	app.Get("/swagger/*", config.CustomSwaggerHandler())
 
 	// #4g proses: inisialisasi semua repository dengan dependency injection
 	userRepo := repositorypostgre.NewUserRepository(postgresDB)

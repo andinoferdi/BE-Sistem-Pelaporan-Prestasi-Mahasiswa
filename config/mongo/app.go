@@ -2,6 +2,8 @@ package config
 
 // #1 proses: import library yang diperlukan untuk fiber dan cors middleware
 import (
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
@@ -19,9 +21,17 @@ func NewApp() *fiber.App {
 		},
 	})
 
-	// #2b proses: setup CORS middleware untuk allow request dari frontend
+	// #2b proses: setup CORS middleware untuk allow request dari frontend dan swagger UI
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:3000",
+		AllowOriginsFunc: func(origin string) bool {
+			// Allow empty origin (same-origin requests)
+			if origin == "" {
+				return true
+			}
+			// Allow all localhost and 127.0.0.1 ports for development
+			return strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "https://localhost:") ||
+				strings.HasPrefix(origin, "http://127.0.0.1:") || strings.HasPrefix(origin, "https://127.0.0.1:")
+		},
 		AllowMethods:     "GET,POST,PUT,PATCH,DELETE,OPTIONS",
 		AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
 		AllowCredentials: true,

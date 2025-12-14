@@ -1,0 +1,2408 @@
+basePath: /api/v1
+definitions:
+  model.Achievement:
+    properties:
+      achievementType:
+        type: string
+      attachments:
+        items:
+          $ref: '#/definitions/model.Attachment'
+        type: array
+      createdAt:
+        type: string
+      deletedAt:
+        type: string
+      description:
+        type: string
+      details:
+        $ref: '#/definitions/model.AchievementDetails'
+      id:
+        type: string
+      points:
+        type: integer
+      studentId:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  model.AchievementDetails:
+    properties:
+      authors:
+        items:
+          type: string
+        type: array
+      certificationName:
+        type: string
+      certificationNumber:
+        type: string
+      competitionLevel:
+        type: string
+      competitionName:
+        type: string
+      customFields:
+        additionalProperties: true
+        type: object
+      eventDate:
+        type: string
+      issn:
+        type: string
+      issuedBy:
+        type: string
+      location:
+        type: string
+      medalType:
+        type: string
+      organizationName:
+        type: string
+      organizer:
+        type: string
+      period:
+        $ref: '#/definitions/model.Period'
+      position:
+        type: string
+      publicationTitle:
+        type: string
+      publicationType:
+        type: string
+      publisher:
+        type: string
+      rank:
+        type: integer
+      score:
+        type: number
+      validUntil:
+        type: string
+    type: object
+  model.AchievementReference:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      mongo_achievement_id:
+        type: string
+      rejection_note:
+        type: string
+      status:
+        type: string
+      student_id:
+        type: string
+      submitted_at:
+        type: string
+      updated_at:
+        type: string
+      verified_at:
+        type: string
+      verified_by:
+        type: string
+    type: object
+  model.Attachment:
+    properties:
+      fileName:
+        type: string
+      fileType:
+        type: string
+      fileUrl:
+        type: string
+      uploadedAt:
+        type: string
+    type: object
+  model.CreateAchievementRequest:
+    properties:
+      achievementType:
+        enum:
+        - academic
+        - competition
+        - organization
+        - publication
+        - certification
+        - other
+        type: string
+      attachments:
+        items:
+          $ref: '#/definitions/model.Attachment'
+        type: array
+      description:
+        type: string
+      details:
+        $ref: '#/definitions/model.AchievementDetails'
+      points:
+        type: integer
+      studentId:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+    required:
+    - achievementType
+    - description
+    - points
+    - studentId
+    - title
+    type: object
+  model.CreateAchievementResponse:
+    properties:
+      data:
+        $ref: '#/definitions/model.Achievement'
+      status:
+        type: string
+    type: object
+  model.CreateLecturerRequest:
+    properties:
+      department:
+        type: string
+      lecturer_id:
+        type: string
+      user_id:
+        type: string
+    required:
+    - lecturer_id
+    - user_id
+    type: object
+  model.CreateLecturerResponse:
+    properties:
+      data:
+        $ref: '#/definitions/model.Lecturer'
+      status:
+        type: string
+    type: object
+  model.CreateStudentRequest:
+    properties:
+      academic_year:
+        type: string
+      advisor_id:
+        type: string
+      program_study:
+        type: string
+      student_id:
+        type: string
+      user_id:
+        type: string
+    required:
+    - student_id
+    - user_id
+    type: object
+  model.CreateStudentResponse:
+    properties:
+      data:
+        $ref: '#/definitions/model.Student'
+      status:
+        type: string
+    type: object
+  model.CreateUserRequest:
+    properties:
+      academic_year:
+        type: string
+      advisor_id:
+        type: string
+      department:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      is_active:
+        type: boolean
+      lecturer_id:
+        type: string
+      password:
+        type: string
+      program_study:
+        type: string
+      role_id:
+        type: string
+      student_id:
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - full_name
+    - password
+    - role_id
+    - username
+    type: object
+  model.CreateUserResponse:
+    properties:
+      data:
+        $ref: '#/definitions/model.User'
+      status:
+        type: string
+    type: object
+  model.DeleteAchievementResponse:
+    properties:
+      status:
+        type: string
+    type: object
+  model.DeleteUserResponse:
+    properties:
+      status:
+        type: string
+    type: object
+  model.GetAllLecturersResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/model.Lecturer'
+        type: array
+      status:
+        type: string
+    type: object
+  model.GetAllRolesResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/model.Role'
+        type: array
+      status:
+        type: string
+    type: object
+  model.GetAllStudentsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/model.Student'
+        type: array
+      status:
+        type: string
+    type: object
+  model.GetAllUsersResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/model.User'
+        type: array
+      status:
+        type: string
+    type: object
+  model.GetProfileResponse:
+    properties:
+      data:
+        properties:
+          email:
+            type: string
+          full_name:
+            type: string
+          permissions:
+            items:
+              type: string
+            type: array
+          role:
+            type: string
+          role_id:
+            type: string
+          user_id:
+            type: string
+          username:
+            type: string
+        type: object
+      status:
+        type: string
+    type: object
+  model.GetStudentByIDResponse:
+    properties:
+      data:
+        $ref: '#/definitions/model.Student'
+      status:
+        type: string
+    type: object
+  model.GetUserByIDResponse:
+    properties:
+      data:
+        $ref: '#/definitions/model.User'
+      status:
+        type: string
+    type: object
+  model.Lecturer:
+    properties:
+      created_at:
+        type: string
+      department:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+      lecturer_id:
+        type: string
+      user_id:
+        type: string
+    type: object
+  model.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  model.LoginResponse:
+    properties:
+      data:
+        properties:
+          refreshToken:
+            type: string
+          token:
+            type: string
+          user:
+            $ref: '#/definitions/model.LoginUserResponse'
+        type: object
+      status:
+        type: string
+    type: object
+  model.LoginUserResponse:
+    properties:
+      fullName:
+        type: string
+      id:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      role:
+        type: string
+      username:
+        type: string
+    type: object
+  model.Period:
+    properties:
+      end:
+        type: string
+      start:
+        type: string
+    type: object
+  model.RefreshTokenRequest:
+    properties:
+      refreshToken:
+        type: string
+    required:
+    - refreshToken
+    type: object
+  model.RefreshTokenResponse:
+    properties:
+      data:
+        properties:
+          refreshToken:
+            type: string
+          token:
+            type: string
+        type: object
+      status:
+        type: string
+    type: object
+  model.RejectAchievementRequest:
+    properties:
+      rejection_note:
+        type: string
+    required:
+    - rejection_note
+    type: object
+  model.RejectAchievementResponse:
+    properties:
+      data:
+        $ref: '#/definitions/model.AchievementReference'
+      status:
+        type: string
+    type: object
+  model.Role:
+    properties:
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  model.Student:
+    properties:
+      academic_year:
+        type: string
+      advisor_id:
+        type: string
+      created_at:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+      program_study:
+        type: string
+      student_id:
+        type: string
+      user_id:
+        type: string
+    type: object
+  model.UpdateAchievementReferenceResponse:
+    properties:
+      data:
+        $ref: '#/definitions/model.AchievementReference'
+      status:
+        type: string
+    type: object
+  model.UpdateAchievementRequest:
+    properties:
+      achievementType:
+        enum:
+        - academic
+        - competition
+        - organization
+        - publication
+        - certification
+        - other
+        type: string
+      attachments:
+        items:
+          $ref: '#/definitions/model.Attachment'
+        type: array
+      description:
+        type: string
+      details:
+        $ref: '#/definitions/model.AchievementDetails'
+      points:
+        type: integer
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+    type: object
+  model.UpdateUserRequest:
+    properties:
+      email:
+        type: string
+      full_name:
+        type: string
+      is_active:
+        type: boolean
+      role_id:
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - full_name
+    - role_id
+    - username
+    type: object
+  model.UpdateUserResponse:
+    properties:
+      data:
+        $ref: '#/definitions/model.User'
+      status:
+        type: string
+    type: object
+  model.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      password_hash:
+        type: string
+      role_id:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  model.VerifyAchievementResponse:
+    properties:
+      data:
+        $ref: '#/definitions/model.AchievementReference'
+      status:
+        type: string
+    type: object
+host: localhost:3001
+info:
+  contact: {}
+  description: API untuk sistem pelaporan prestasi mahasiswa dengan dukungan multi-role
+    (Admin, Dosen Wali, Mahasiswa) dan field prestasi yang fleksibel
+  title: Sistem Pelaporan Prestasi Mahasiswa API
+  version: "1.0"
+paths:
+  /achievements:
+    get:
+      consumes:
+      - application/json
+      description: 'Mengambil daftar achievements dengan pagination dan filtering
+        berdasarkan role user (Mahasiswa: milik sendiri, Dosen Wali: milik mahasiswa
+        bimbingan, Admin: semua)'
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Limit per page
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by status (draft, submitted, verified, rejected)
+        in: query
+        name: status
+        type: string
+      - description: Filter by achievement type
+        in: query
+        name: achievementType
+        type: string
+      - description: Sort by field (created_at, updated_at, submitted_at, status)
+        in: query
+        name: sortBy
+        type: string
+      - default: DESC
+        description: Sort order (ASC, DESC)
+        in: query
+        name: sortOrder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get all achievements
+      tags:
+      - Achievements
+    post:
+      consumes:
+      - application/json
+      description: Membuat achievement baru. Hanya dapat diakses oleh Mahasiswa dengan
+        permission achievement:create
+      parameters:
+      - description: Achievement data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateAchievementRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.CreateAchievementResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Create achievement
+      tags:
+      - Achievements
+  /achievements/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Menghapus achievement (soft delete). Hanya dapat diakses oleh Mahasiswa
+        pemilik dengan permission achievement:delete. Hanya dapat dihapus jika status
+        adalah draft
+      parameters:
+      - description: Achievement ID (MongoDB ObjectID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.DeleteAchievementResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Delete achievement
+      tags:
+      - Achievements
+    get:
+      consumes:
+      - application/json
+      description: 'Mengambil detail achievement berdasarkan ID. Akses dibatasi berdasarkan
+        role (Mahasiswa: hanya milik sendiri, Dosen Wali: hanya mahasiswa bimbingan,
+        Admin: semua)'
+      parameters:
+      - description: Achievement ID (MongoDB ObjectID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get achievement by ID
+      tags:
+      - Achievements
+    put:
+      consumes:
+      - application/json
+      description: Memperbarui achievement. Hanya dapat diakses oleh Mahasiswa pemilik
+        dengan permission achievement:update. Hanya dapat diupdate jika status adalah
+        draft
+      parameters:
+      - description: Achievement ID (MongoDB ObjectID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Achievement data to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateAchievementRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Update achievement
+      tags:
+      - Achievements
+  /achievements/{id}/attachments:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 'Mengupload file attachment untuk achievement. Hanya dapat diakses
+        oleh Mahasiswa pemilik dengan permission achievement:update. Hanya dapat diupload
+        jika status adalah draft. Format file: PDF, JPG, PNG, DOC, DOCX (max 10MB)'
+      parameters:
+      - description: Achievement ID (MongoDB ObjectID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Attachment file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Attachment'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Upload attachment
+      tags:
+      - Achievements
+  /achievements/{id}/history:
+    get:
+      consumes:
+      - application/json
+      description: Mengambil history perubahan status achievement. Dapat diakses dengan
+        permission achievement:read
+      parameters:
+      - description: Achievement ID (MongoDB ObjectID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get achievement history
+      tags:
+      - Achievements
+  /achievements/{id}/reject:
+    post:
+      consumes:
+      - application/json
+      description: Menolak achievement dengan catatan. Hanya dapat diakses oleh Dosen
+        Wali dengan permission achievement:verify. Hanya dapat ditolak jika status
+        adalah submitted
+      parameters:
+      - description: Achievement ID (MongoDB ObjectID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Rejection note
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.RejectAchievementRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.RejectAchievementResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Reject achievement
+      tags:
+      - Achievements
+  /achievements/{id}/submit:
+    post:
+      consumes:
+      - application/json
+      description: Submit achievement untuk verifikasi oleh dosen wali. Hanya dapat
+        diakses oleh Mahasiswa pemilik dengan permission achievement:update. Hanya
+        dapat disubmit jika status adalah draft
+      parameters:
+      - description: Achievement ID (MongoDB ObjectID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.UpdateAchievementReferenceResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Submit achievement for verification
+      tags:
+      - Achievements
+  /achievements/{id}/verify:
+    post:
+      consumes:
+      - application/json
+      description: Memverifikasi achievement. Hanya dapat diakses oleh Dosen Wali
+        dengan permission achievement:verify. Hanya dapat diverifikasi jika status
+        adalah submitted
+      parameters:
+      - description: Achievement ID (MongoDB ObjectID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.VerifyAchievementResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Verify achievement
+      tags:
+      - Achievements
+  /achievements/stats:
+    get:
+      consumes:
+      - application/json
+      description: Mengambil statistik achievement secara umum (public endpoint, tidak
+        perlu autentikasi)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get achievement statistics
+      tags:
+      - Achievements
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Login menggunakan username/email dan password untuk mendapatkan
+        JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Login user
+      tags:
+      - Authentication
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Logout user dari sistem
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: message
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Logout user
+      tags:
+      - Authentication
+  /auth/profile:
+    get:
+      consumes:
+      - application/json
+      description: Mengambil profil user yang sedang login beserta role dan permissions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.GetProfileResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get user profile
+      tags:
+      - Authentication
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Refresh access token menggunakan refresh token yang valid
+      parameters:
+      - description: Refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.RefreshTokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Refresh access token
+      tags:
+      - Authentication
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Mengecek status aplikasi dan mendapatkan instance ID server
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: instanceId
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Health check endpoint
+      tags:
+      - System
+  /lecturers:
+    get:
+      consumes:
+      - application/json
+      description: Mengambil daftar semua lecturer dari database. Hanya dapat diakses
+        oleh admin dengan permission user:manage
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.GetAllLecturersResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get all lecturers
+      tags:
+      - Lecturers
+  /lecturers/{id}/advisees:
+    get:
+      consumes:
+      - application/json
+      description: Mengambil daftar mahasiswa bimbingan dari lecturer tertentu. Hanya
+        dapat diakses oleh admin dengan permission user:manage
+      parameters:
+      - description: Lecturer ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.GetAllStudentsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get lecturer advisees
+      tags:
+      - Lecturers
+  /notifications:
+    get:
+      consumes:
+      - application/json
+      description: Mengambil daftar notifikasi user dengan pagination
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Limit per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get notifications
+      tags:
+      - Notifications
+  /notifications/{id}/read:
+    put:
+      consumes:
+      - application/json
+      description: Menandai notifikasi sebagai sudah dibaca berdasarkan ID
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Mark notification as read
+      tags:
+      - Notifications
+  /notifications/read-all:
+    put:
+      consumes:
+      - application/json
+      description: Menandai semua notifikasi user sebagai sudah dibaca
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Mark all notifications as read
+      tags:
+      - Notifications
+  /notifications/unread-count:
+    get:
+      consumes:
+      - application/json
+      description: Mengambil jumlah notifikasi yang belum dibaca untuk user yang sedang
+        login
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get unread notification count
+      tags:
+      - Notifications
+  /reports/lecturer:
+    get:
+      consumes:
+      - application/json
+      description: Mengambil laporan prestasi mahasiswa bimbingan untuk lecturer yang
+        sedang login
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get current lecturer report
+      tags:
+      - Reports
+  /reports/lecturer/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Mengambil laporan prestasi mahasiswa bimbingan untuk lecturer berdasarkan
+        ID
+      parameters:
+      - description: Lecturer ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get lecturer report by ID
+      tags:
+      - Reports
+  /reports/statistics:
+    get:
+      consumes:
+      - application/json
+      description: 'Mengambil statistik achievement berdasarkan role (Mahasiswa: milik
+        sendiri, Dosen Wali: mahasiswa bimbingan, Admin: semua)'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get achievement statistics
+      tags:
+      - Reports
+  /reports/student:
+    get:
+      consumes:
+      - application/json
+      description: Mengambil laporan prestasi student yang sedang login
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get current student report
+      tags:
+      - Reports
+  /reports/student/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Mengambil laporan prestasi student berdasarkan ID
+      parameters:
+      - description: Student ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get student report by ID
+      tags:
+      - Reports
+  /roles:
+    get:
+      consumes:
+      - application/json
+      description: Mengambil daftar semua role dari database. Hanya dapat diakses
+        oleh admin dengan permission user:manage
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.GetAllRolesResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get all roles
+      tags:
+      - Users
+  /students:
+    get:
+      consumes:
+      - application/json
+      description: Mengambil daftar semua student dari database. Hanya dapat diakses
+        oleh admin dengan permission user:manage
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.GetAllStudentsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get all students
+      tags:
+      - Students
+  /students/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Mengambil data student spesifik berdasarkan ID. Hanya dapat diakses
+        oleh admin dengan permission user:manage
+      parameters:
+      - description: Student ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.GetStudentByIDResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get student by ID
+      tags:
+      - Students
+  /students/{id}/achievements:
+    get:
+      consumes:
+      - application/json
+      description: Mengambil daftar achievements milik student tertentu dengan pagination.
+        Dapat diakses dengan permission achievement:read
+      parameters:
+      - description: Student ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Limit per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get student achievements
+      tags:
+      - Students
+  /students/{id}/advisor:
+    put:
+      consumes:
+      - application/json
+      description: Memperbarui dosen wali untuk student tertentu. Hanya dapat diakses
+        oleh admin dengan permission user:manage
+      parameters:
+      - description: Student ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Advisor ID
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: message
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Update student advisor
+      tags:
+      - Students
+  /users:
+    get:
+      consumes:
+      - application/json
+      description: Mengambil daftar semua user dari database. Hanya dapat diakses
+        oleh admin dengan permission user:manage
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.GetAllUsersResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get all users
+      tags:
+      - Users
+    post:
+      consumes:
+      - application/json
+      description: Membuat user baru di database. Dapat sekaligus membuat student
+        atau lecturer profile. Hanya dapat diakses oleh admin dengan permission user:manage
+      parameters:
+      - description: User data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.CreateUserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Create user
+      tags:
+      - Users
+  /users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Menghapus user berdasarkan ID. Hanya dapat diakses oleh admin dengan
+        permission user:manage
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.DeleteUserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Delete user
+      tags:
+      - Users
+    get:
+      consumes:
+      - application/json
+      description: Mengambil data user spesifik berdasarkan ID. Hanya dapat diakses
+        oleh admin dengan permission user:manage
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.GetUserByIDResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Get user by ID
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: Memperbarui data user berdasarkan ID. Hanya dapat diakses oleh
+        admin dengan permission user:manage
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.UpdateUserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Update user
+      tags:
+      - Users
+  /users/{id}/lecturer-profile:
+    post:
+      consumes:
+      - application/json
+      description: Membuat lecturer profile untuk user tertentu. User harus memiliki
+        role Dosen Wali. Hanya dapat diakses oleh admin dengan permission user:manage
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Lecturer data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateLecturerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.CreateLecturerResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Create lecturer profile
+      tags:
+      - Users
+  /users/{id}/role:
+    put:
+      consumes:
+      - application/json
+      description: Memperbarui role user berdasarkan ID. Hanya dapat diakses oleh
+        admin dengan permission user:manage
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Role ID
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: message
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Update user role
+      tags:
+      - Users
+  /users/{id}/student-profile:
+    post:
+      consumes:
+      - application/json
+      description: Membuat student profile untuk user tertentu. User harus memiliki
+        role Mahasiswa. Hanya dapat diakses oleh admin dengan permission user:manage
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Student data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateStudentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.CreateStudentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - Bearer: []
+      summary: Create student profile
+      tags:
+      - Users
+schemes:
+- http
+securityDefinitions:
+  Bearer:
+    description: 'Type "Bearer" followed by a space and JWT token. Example: "Bearer
+      {token}"'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

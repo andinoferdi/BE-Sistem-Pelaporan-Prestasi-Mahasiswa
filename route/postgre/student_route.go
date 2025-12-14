@@ -14,18 +14,23 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// #2 proses: setup semua route untuk student dengan middleware AuthRequired dan PermissionRequired
-func StudentRoutes(app *fiber.App, studentService servicepostgre.IStudentService, achievementService servicepostgre.IAchievementService, db *sql.DB) {
-	// #2a proses: buat group route untuk students dengan middleware AuthRequired
-	students := app.Group("/api/v1/students", middlewarepostgre.AuthRequired())
-
-	// #3 proses: endpoint GET /api/v1/students untuk ambil semua student dengan permission user:manage
-	students.Get("", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
-		// #3a proses: buat context dengan timeout 5 detik
+// GetAllStudents godoc
+// @Summary Get all students
+// @Description Mengambil daftar semua student dari database. Hanya dapat diakses oleh admin dengan permission user:manage
+// @Tags Students
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} modelpostgre.GetAllStudentsResponse
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /students [get]
+func GetAllStudents(studentService servicepostgre.IStudentService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// #3b proses: panggil service get all students
 		studentsList, err := studentService.GetAllStudents(ctx)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -34,18 +39,32 @@ func StudentRoutes(app *fiber.App, studentService servicepostgre.IStudentService
 			})
 		}
 
-		// #3c proses: build response dengan data students
 		response := modelpostgre.GetAllStudentsResponse{
 			Status: "success",
 			Data:   studentsList,
 		}
 
 		return c.JSON(response)
-	})
+	}
+}
 
-	// #4 proses: endpoint GET /api/v1/students/:id untuk ambil student berdasarkan ID dengan permission user:manage
-	students.Get("/:id", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
-		// #4a proses: ambil student ID dari URL parameter dan validasi
+// GetStudentByID godoc
+// @Summary Get student by ID
+// @Description Mengambil data student spesifik berdasarkan ID. Hanya dapat diakses oleh admin dengan permission user:manage
+// @Tags Students
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "Student ID"
+// @Success 200 {object} modelpostgre.GetStudentByIDResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 404 {object} map[string]string "Not Found"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /students/{id} [get]
+func GetStudentByID(studentService servicepostgre.IStudentService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		id := c.Params("id")
 		if id == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -54,11 +73,9 @@ func StudentRoutes(app *fiber.App, studentService servicepostgre.IStudentService
 			})
 		}
 
-		// #4b proses: buat context dengan timeout 5 detik
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// #4c proses: panggil service get student by ID
 		student, err := studentService.GetStudentByID(ctx, id)
 		if err != nil {
 			if strings.Contains(err.Error(), "tidak ditemukan") {
@@ -73,18 +90,33 @@ func StudentRoutes(app *fiber.App, studentService servicepostgre.IStudentService
 			})
 		}
 
-		// #4d proses: build response dengan data student
 		response := modelpostgre.GetStudentByIDResponse{
 			Status: "success",
 			Data:   *student,
 		}
 
 		return c.JSON(response)
-	})
+	}
+}
 
-	// #5 proses: endpoint GET /api/v1/students/:id/achievements untuk ambil achievements student dengan pagination
-	students.Get("/:id/achievements", middlewarepostgre.PermissionRequired(db, "achievement:read"), func(c *fiber.Ctx) error {
-		// #5a proses: ambil student ID dari URL parameter dan validasi
+// GetStudentAchievements godoc
+// @Summary Get student achievements
+// @Description Mengambil daftar achievements milik student tertentu dengan pagination. Dapat diakses dengan permission achievement:read
+// @Tags Students
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "Student ID"
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Limit per page" default(10)
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /students/{id}/achievements [get]
+func GetStudentAchievements(achievementService servicepostgre.IAchievementService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		studentID := c.Params("id")
 		if studentID == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -93,16 +125,13 @@ func StudentRoutes(app *fiber.App, studentService servicepostgre.IStudentService
 			})
 		}
 
-		// #5b proses: ambil dan validasi query parameter page dan limit
 		page := helper.GetQueryInt(c, "page", 1)
 		limit := helper.GetQueryInt(c, "limit", 10)
 		page, limit = helper.ValidatePagination(page, limit)
 
-		// #5c proses: buat context dengan timeout 5 detik
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// #5d proses: panggil service get achievements by student ID
 		response, err := achievementService.GetAchievementsByStudentID(ctx, studentID, page, limit)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -111,13 +140,28 @@ func StudentRoutes(app *fiber.App, studentService servicepostgre.IStudentService
 			})
 		}
 
-		// #5e proses: return response dengan data achievements dan pagination
 		return c.JSON(response)
-	})
+	}
+}
 
-	// #6 proses: endpoint PUT /api/v1/students/:id/advisor untuk update advisor student dengan permission user:manage
-	students.Put("/:id/advisor", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
-		// #6a proses: ambil student ID dari URL parameter dan validasi
+// UpdateStudentAdvisor godoc
+// @Summary Update student advisor
+// @Description Memperbarui dosen wali untuk student tertentu. Hanya dapat diakses oleh admin dengan permission user:manage
+// @Tags Students
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "Student ID"
+// @Param body body object true "Advisor ID" example({"advisor_id": "uuid-here"})
+// @Success 200 {object} map[string]string "message"
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 404 {object} map[string]string "Not Found"
+// @Failure 422 {object} map[string]string "Unprocessable Entity"
+// @Router /students/{id}/advisor [put]
+func UpdateStudentAdvisor(studentService servicepostgre.IStudentService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		studentID := c.Params("id")
 		if studentID == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -126,7 +170,6 @@ func StudentRoutes(app *fiber.App, studentService servicepostgre.IStudentService
 			})
 		}
 
-		// #6b proses: parse request body untuk ambil advisor ID
 		req := struct {
 			AdvisorID string `json:"advisor_id"`
 		}{}
@@ -137,11 +180,9 @@ func StudentRoutes(app *fiber.App, studentService servicepostgre.IStudentService
 			})
 		}
 
-		// #6c proses: buat context dengan timeout 5 detik
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// #6d proses: panggil service update student advisor
 		err := studentService.UpdateStudentAdvisor(ctx, studentID, req.AdvisorID)
 		if err != nil {
 			if strings.Contains(err.Error(), "tidak ditemukan") {
@@ -156,10 +197,19 @@ func StudentRoutes(app *fiber.App, studentService servicepostgre.IStudentService
 			})
 		}
 
-		// #6e proses: return response sukses
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
 			"status":  "success",
 			"message": "Advisor berhasil diupdate",
 		})
-	})
+	}
+}
+
+// #2 proses: setup semua route untuk student dengan middleware AuthRequired dan PermissionRequired
+func StudentRoutes(app *fiber.App, studentService servicepostgre.IStudentService, achievementService servicepostgre.IAchievementService, db *sql.DB) {
+	students := app.Group("/api/v1/students", middlewarepostgre.AuthRequired())
+
+	students.Get("", middlewarepostgre.PermissionRequired(db, "user:manage"), GetAllStudents(studentService))
+	students.Get("/:id", middlewarepostgre.PermissionRequired(db, "user:manage"), GetStudentByID(studentService))
+	students.Get("/:id/achievements", middlewarepostgre.PermissionRequired(db, "achievement:read"), GetStudentAchievements(achievementService))
+	students.Put("/:id/advisor", middlewarepostgre.PermissionRequired(db, "user:manage"), UpdateStudentAdvisor(studentService))
 }

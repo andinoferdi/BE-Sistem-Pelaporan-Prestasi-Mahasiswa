@@ -13,18 +13,23 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// #2 proses: setup semua route untuk lecturer dengan middleware AuthRequired dan PermissionRequired
-func LecturerRoutes(app *fiber.App, lecturerService servicepostgre.ILecturerService, studentService servicepostgre.IStudentService, db *sql.DB) {
-	// #2a proses: buat group route untuk lecturers dengan middleware AuthRequired
-	lecturers := app.Group("/api/v1/lecturers", middlewarepostgre.AuthRequired())
-
-	// #3 proses: endpoint GET /api/v1/lecturers untuk ambil semua lecturer dengan permission user:manage
-	lecturers.Get("", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
-		// #3a proses: buat context dengan timeout 5 detik
+// GetAllLecturers godoc
+// @Summary Get all lecturers
+// @Description Mengambil daftar semua lecturer dari database. Hanya dapat diakses oleh admin dengan permission user:manage
+// @Tags Lecturers
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} model.GetAllLecturersResponse
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /lecturers [get]
+func GetAllLecturers(lecturerService servicepostgre.ILecturerService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// #3b proses: panggil service get all lecturers
 		lecturersList, err := lecturerService.GetAllLecturers(ctx)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -33,18 +38,32 @@ func LecturerRoutes(app *fiber.App, lecturerService servicepostgre.ILecturerServ
 			})
 		}
 
-		// #3c proses: build response dengan data lecturers
 		response := model.GetAllLecturersResponse{
 			Status: "success",
 			Data:   lecturersList,
 		}
 
 		return c.JSON(response)
-	})
+	}
+}
 
-	// #4 proses: endpoint GET /api/v1/lecturers/:id/advisees untuk ambil mahasiswa bimbingan lecturer tertentu
-	lecturers.Get("/:id/advisees", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
-		// #4a proses: ambil lecturer ID dari URL parameter dan validasi
+// GetLecturerAdvisees godoc
+// @Summary Get lecturer advisees
+// @Description Mengambil daftar mahasiswa bimbingan dari lecturer tertentu. Hanya dapat diakses oleh admin dengan permission user:manage
+// @Tags Lecturers
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "Lecturer ID"
+// @Success 200 {object} model.GetAllStudentsResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 404 {object} map[string]string "Not Found"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /lecturers/{id}/advisees [get]
+func GetLecturerAdvisees(lecturerService servicepostgre.ILecturerService, studentService servicepostgre.IStudentService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		lecturerID := c.Params("id")
 		if lecturerID == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -53,11 +72,9 @@ func LecturerRoutes(app *fiber.App, lecturerService servicepostgre.ILecturerServ
 			})
 		}
 
-		// #4b proses: buat context dengan timeout 5 detik
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// #4c proses: validasi lecturer ID ada di database
 		lecturer, err := lecturerService.GetLecturerByID(ctx, lecturerID)
 		if err != nil {
 			if strings.Contains(err.Error(), "tidak ditemukan") {
@@ -72,7 +89,6 @@ func LecturerRoutes(app *fiber.App, lecturerService servicepostgre.ILecturerServ
 			})
 		}
 
-		// #4d proses: ambil mahasiswa bimbingan dari lecturer
 		studentsList, err := studentService.GetStudentsByAdvisorID(ctx, lecturer.ID)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -81,12 +97,19 @@ func LecturerRoutes(app *fiber.App, lecturerService servicepostgre.ILecturerServ
 			})
 		}
 
-		// #4e proses: build response dengan data mahasiswa bimbingan
 		response := model.GetAllStudentsResponse{
 			Status: "success",
 			Data:   studentsList,
 		}
 
 		return c.JSON(response)
-	})
+	}
+}
+
+// #2 proses: setup semua route untuk lecturer dengan middleware AuthRequired dan PermissionRequired
+func LecturerRoutes(app *fiber.App, lecturerService servicepostgre.ILecturerService, studentService servicepostgre.IStudentService, db *sql.DB) {
+	lecturers := app.Group("/api/v1/lecturers", middlewarepostgre.AuthRequired())
+
+	lecturers.Get("", middlewarepostgre.PermissionRequired(db, "user:manage"), GetAllLecturers(lecturerService))
+	lecturers.Get("/:id/advisees", middlewarepostgre.PermissionRequired(db, "user:manage"), GetLecturerAdvisees(lecturerService, studentService))
 }

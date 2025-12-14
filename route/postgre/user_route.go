@@ -13,18 +13,23 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// #2 proses: setup semua route untuk user dengan middleware AuthRequired dan PermissionRequired
-func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, studentService servicepostgre.IStudentService, lecturerService servicepostgre.ILecturerService, db *sql.DB) {
-	// #2a proses: buat group route untuk users dengan middleware AuthRequired
-	users := app.Group("/api/v1/users", middlewarepostgre.AuthRequired())
-
-	// #3 proses: endpoint GET /api/v1/users untuk ambil semua user dengan permission user:manage
-	users.Get("", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
-		// #3a proses: buat context dengan timeout 5 detik
+// GetAllUsers godoc
+// @Summary Get all users
+// @Description Mengambil daftar semua user dari database. Hanya dapat diakses oleh admin dengan permission user:manage
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} model.GetAllUsersResponse
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /users [get]
+func GetAllUsers(userService servicepostgre.IUserService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// #3b proses: panggil service get all users
 		usersList, err := userService.GetAllUsers(ctx)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -33,18 +38,32 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #3c proses: build response dengan data users
 		response := model.GetAllUsersResponse{
 			Status: "success",
 			Data:   usersList,
 		}
 
 		return c.JSON(response)
-	})
+	}
+}
 
-	// #4 proses: endpoint GET /api/v1/users/:id untuk ambil user berdasarkan ID dengan permission user:manage
-	users.Get("/:id", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
-		// #4a proses: ambil user ID dari URL parameter dan validasi
+// GetUserByID godoc
+// @Summary Get user by ID
+// @Description Mengambil data user spesifik berdasarkan ID. Hanya dapat diakses oleh admin dengan permission user:manage
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "User ID"
+// @Success 200 {object} model.GetUserByIDResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 404 {object} map[string]string "Not Found"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /users/{id} [get]
+func GetUserByID(userService servicepostgre.IUserService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		id := c.Params("id")
 		if id == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -53,11 +72,9 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #4b proses: buat context dengan timeout 5 detik
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// #4c proses: panggil service get user by ID
 		user, err := userService.GetUserByID(ctx, id)
 		if err != nil {
 			if strings.Contains(err.Error(), "tidak ditemukan") {
@@ -72,18 +89,33 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #4d proses: build response dengan data user
 		response := model.GetUserByIDResponse{
 			Status: "success",
 			Data:   *user,
 		}
 
 		return c.JSON(response)
-	})
+	}
+}
 
-	// #5 proses: endpoint POST /api/v1/users untuk buat user baru dengan permission user:manage
-	users.Post("", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
-		// #5a proses: parse request body ke CreateUserRequest
+// CreateUser godoc
+// @Summary Create user
+// @Description Membuat user baru di database. Dapat sekaligus membuat student atau lecturer profile. Hanya dapat diakses oleh admin dengan permission user:manage
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param body body model.CreateUserRequest true "User data"
+// @Success 200 {object} model.CreateUserResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 404 {object} map[string]string "Not Found"
+// @Failure 409 {object} map[string]string "Conflict"
+// @Failure 422 {object} map[string]string "Unprocessable Entity"
+// @Router /users [post]
+func CreateUser(userService servicepostgre.IUserService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		req := new(model.CreateUserRequest)
 		if err := c.BodyParser(req); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -92,14 +124,11 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #5b proses: buat context dengan timeout 5 detik
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// #5c proses: panggil service create user
 		user, err := userService.CreateUser(ctx, *req)
 		if err != nil {
-			// #5d proses: handle error dengan status code yang sesuai
 			if strings.Contains(err.Error(), "sudah digunakan") {
 				return c.Status(fiber.StatusConflict).JSON(fiber.Map{
 					"error":   "Konflik data",
@@ -118,18 +147,34 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #5e proses: build response dengan data user yang baru dibuat
 		response := model.CreateUserResponse{
 			Status: "success",
 			Data:   *user,
 		}
 
 		return c.Status(fiber.StatusOK).JSON(response)
-	})
+	}
+}
 
-	// #6 proses: endpoint PUT /api/v1/users/:id untuk update user dengan permission user:manage
-	users.Put("/:id", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
-		// #6a proses: ambil user ID dari URL parameter dan validasi
+// UpdateUser godoc
+// @Summary Update user
+// @Description Memperbarui data user berdasarkan ID. Hanya dapat diakses oleh admin dengan permission user:manage
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "User ID"
+// @Param body body model.UpdateUserRequest true "User data"
+// @Success 200 {object} model.UpdateUserResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 404 {object} map[string]string "Not Found"
+// @Failure 409 {object} map[string]string "Conflict"
+// @Failure 422 {object} map[string]string "Unprocessable Entity"
+// @Router /users/{id} [put]
+func UpdateUser(userService servicepostgre.IUserService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		id := c.Params("id")
 		if id == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -138,7 +183,6 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #6b proses: parse request body ke UpdateUserRequest
 		req := new(model.UpdateUserRequest)
 		if err := c.BodyParser(req); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -147,14 +191,11 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #6c proses: buat context dengan timeout 5 detik
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// #6d proses: panggil service update user
 		user, err := userService.UpdateUser(ctx, id, *req)
 		if err != nil {
-			// #6e proses: handle error dengan status code yang sesuai
 			if strings.Contains(err.Error(), "tidak ditemukan") {
 				return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 					"error":   "Data tidak ditemukan",
@@ -173,18 +214,33 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #6f proses: build response dengan data user yang sudah diupdate
 		response := model.UpdateUserResponse{
 			Status: "success",
 			Data:   *user,
 		}
 
 		return c.Status(fiber.StatusOK).JSON(response)
-	})
+	}
+}
 
-	// #7 proses: endpoint DELETE /api/v1/users/:id untuk hapus user dengan permission user:manage
-	users.Delete("/:id", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
-		// #7a proses: ambil user ID dari URL parameter dan validasi
+// DeleteUser godoc
+// @Summary Delete user
+// @Description Menghapus user berdasarkan ID. Hanya dapat diakses oleh admin dengan permission user:manage
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "User ID"
+// @Success 200 {object} model.DeleteUserResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 404 {object} map[string]string "Not Found"
+// @Failure 409 {object} map[string]string "Conflict"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /users/{id} [delete]
+func DeleteUser(userService servicepostgre.IUserService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		id := c.Params("id")
 		if id == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -193,14 +249,11 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #7b proses: buat context dengan timeout 5 detik
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// #7c proses: panggil service delete user
 		err := userService.DeleteUser(ctx, id)
 		if err != nil {
-			// #7d proses: handle error dengan status code yang sesuai
 			if strings.Contains(err.Error(), "tidak ditemukan") {
 				return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 					"error":   "Data tidak ditemukan",
@@ -219,17 +272,33 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #7e proses: build response sukses
 		response := model.DeleteUserResponse{
 			Status: "success",
 		}
 
 		return c.Status(fiber.StatusOK).JSON(response)
-	})
+	}
+}
 
-	// #8 proses: endpoint PUT /api/v1/users/:id/role untuk update role user dengan permission user:manage
-	users.Put("/:id/role", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
-		// #8a proses: ambil user ID dari URL parameter dan validasi
+// UpdateUserRole godoc
+// @Summary Update user role
+// @Description Memperbarui role user berdasarkan ID. Hanya dapat diakses oleh admin dengan permission user:manage
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "User ID"
+// @Param body body object true "Role ID" example({"role_id": "uuid-here"})
+// @Success 200 {object} map[string]string "message"
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 404 {object} map[string]string "Not Found"
+// @Failure 409 {object} map[string]string "Conflict"
+// @Failure 422 {object} map[string]string "Unprocessable Entity"
+// @Router /users/{id}/role [put]
+func UpdateUserRole(userService servicepostgre.IUserService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		id := c.Params("id")
 		if id == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -238,7 +307,6 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #8b proses: parse request body untuk ambil role ID
 		req := struct {
 			RoleID string `json:"role_id"`
 		}{}
@@ -249,7 +317,6 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #8c proses: validasi role ID tidak kosong
 		if req.RoleID == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":   "Permintaan tidak valid",
@@ -257,14 +324,11 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #8d proses: buat context dengan timeout 5 detik
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// #8e proses: panggil service update user role
 		err := userService.UpdateUserRole(ctx, id, req.RoleID)
 		if err != nil {
-			// #8f proses: handle error dengan status code yang sesuai
 			if strings.Contains(err.Error(), "tidak ditemukan") {
 				return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 					"error":   "Data tidak ditemukan",
@@ -283,16 +347,32 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #8g proses: return response sukses
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
 			"status":  "success",
 			"message": "Role user berhasil diupdate",
 		})
-	})
+	}
+}
 
-	// #9 proses: endpoint POST /api/v1/users/:id/student-profile untuk buat student profile untuk user dengan permission user:manage
-	users.Post("/:id/student-profile", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
-		// #9a proses: ambil user ID dari URL parameter dan validasi
+// CreateStudentProfile godoc
+// @Summary Create student profile
+// @Description Membuat student profile untuk user tertentu. User harus memiliki role Mahasiswa. Hanya dapat diakses oleh admin dengan permission user:manage
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "User ID"
+// @Param body body model.CreateStudentRequest true "Student data"
+// @Success 200 {object} model.CreateStudentResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 404 {object} map[string]string "Not Found"
+// @Failure 409 {object} map[string]string "Conflict"
+// @Failure 422 {object} map[string]string "Unprocessable Entity"
+// @Router /users/{id}/student-profile [post]
+func CreateStudentProfile(studentService servicepostgre.IStudentService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		userID := c.Params("id")
 		if userID == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -301,7 +381,6 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #9b proses: parse request body ke CreateStudentRequest
 		req := new(model.CreateStudentRequest)
 		if err := c.BodyParser(req); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -310,17 +389,13 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #9c proses: set user ID ke request
 		req.UserID = userID
 
-		// #9d proses: buat context dengan timeout 5 detik
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// #9e proses: panggil service create student
 		student, err := studentService.CreateStudent(ctx, *req)
 		if err != nil {
-			// #9f proses: handle error dengan status code yang sesuai
 			if strings.Contains(err.Error(), "tidak ditemukan") {
 				return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 					"error":   "Data tidak ditemukan",
@@ -345,18 +420,34 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #9g proses: build response dengan data student yang baru dibuat
 		response := model.CreateStudentResponse{
 			Status: "success",
 			Data:   *student,
 		}
 
 		return c.Status(fiber.StatusOK).JSON(response)
-	})
+	}
+}
 
-	// #10 proses: endpoint POST /api/v1/users/:id/lecturer-profile untuk buat lecturer profile untuk user dengan permission user:manage
-	users.Post("/:id/lecturer-profile", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
-		// #10a proses: ambil user ID dari URL parameter dan validasi
+// CreateLecturerProfile godoc
+// @Summary Create lecturer profile
+// @Description Membuat lecturer profile untuk user tertentu. User harus memiliki role Dosen Wali. Hanya dapat diakses oleh admin dengan permission user:manage
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path string true "User ID"
+// @Param body body model.CreateLecturerRequest true "Lecturer data"
+// @Success 200 {object} model.CreateLecturerResponse
+// @Failure 400 {object} map[string]string "Bad Request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 404 {object} map[string]string "Not Found"
+// @Failure 409 {object} map[string]string "Conflict"
+// @Failure 422 {object} map[string]string "Unprocessable Entity"
+// @Router /users/{id}/lecturer-profile [post]
+func CreateLecturerProfile(lecturerService servicepostgre.ILecturerService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		userID := c.Params("id")
 		if userID == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -365,7 +456,6 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #10b proses: parse request body ke CreateLecturerRequest
 		req := new(model.CreateLecturerRequest)
 		if err := c.BodyParser(req); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -374,17 +464,13 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #10c proses: set user ID ke request
 		req.UserID = userID
 
-		// #10d proses: buat context dengan timeout 5 detik
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// #10e proses: panggil service create lecturer
 		lecturer, err := lecturerService.CreateLecturer(ctx, *req)
 		if err != nil {
-			// #10f proses: handle error dengan status code yang sesuai
 			if strings.Contains(err.Error(), "tidak ditemukan") {
 				return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 					"error":   "Data tidak ditemukan",
@@ -409,25 +495,32 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #10g proses: build response dengan data lecturer yang baru dibuat
 		response := model.CreateLecturerResponse{
 			Status: "success",
 			Data:   *lecturer,
 		}
 
 		return c.Status(fiber.StatusOK).JSON(response)
-	})
+	}
+}
 
-	// #11 proses: buat group route untuk roles dengan middleware AuthRequired
-	roles := app.Group("/api/v1/roles", middlewarepostgre.AuthRequired())
-
-	// #12 proses: endpoint GET /api/v1/roles untuk ambil semua role dengan permission user:manage
-	roles.Get("", middlewarepostgre.PermissionRequired(db, "user:manage"), func(c *fiber.Ctx) error {
-		// #12a proses: buat context dengan timeout 5 detik
+// GetAllRoles godoc
+// @Summary Get all roles
+// @Description Mengambil daftar semua role dari database. Hanya dapat diakses oleh admin dengan permission user:manage
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} model.GetAllRolesResponse
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 403 {object} map[string]string "Forbidden"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /roles [get]
+func GetAllRoles(userService servicepostgre.IUserService) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// #12b proses: panggil service get all roles
 		rolesList, err := userService.GetAllRoles(ctx)
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -436,12 +529,36 @@ func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, student
 			})
 		}
 
-		// #12c proses: build response dengan data roles
 		response := model.GetAllRolesResponse{
 			Status: "success",
 			Data:   rolesList,
 		}
 
 		return c.JSON(response)
-	})
+	}
+}
+
+// #2 proses: setup semua route untuk user dengan middleware AuthRequired dan PermissionRequired
+func UserRoutes(app *fiber.App, userService servicepostgre.IUserService, studentService servicepostgre.IStudentService, lecturerService servicepostgre.ILecturerService, db *sql.DB) {
+	users := app.Group("/api/v1/users", middlewarepostgre.AuthRequired())
+
+	users.Get("", middlewarepostgre.PermissionRequired(db, "user:manage"), GetAllUsers(userService))
+
+	users.Get("/:id", middlewarepostgre.PermissionRequired(db, "user:manage"), GetUserByID(userService))
+
+	users.Post("", middlewarepostgre.PermissionRequired(db, "user:manage"), CreateUser(userService))
+
+	users.Put("/:id", middlewarepostgre.PermissionRequired(db, "user:manage"), UpdateUser(userService))
+
+	users.Delete("/:id", middlewarepostgre.PermissionRequired(db, "user:manage"), DeleteUser(userService))
+
+	users.Put("/:id/role", middlewarepostgre.PermissionRequired(db, "user:manage"), UpdateUserRole(userService))
+
+	users.Post("/:id/student-profile", middlewarepostgre.PermissionRequired(db, "user:manage"), CreateStudentProfile(studentService))
+
+	users.Post("/:id/lecturer-profile", middlewarepostgre.PermissionRequired(db, "user:manage"), CreateLecturerProfile(lecturerService))
+
+	roles := app.Group("/api/v1/roles", middlewarepostgre.AuthRequired())
+
+	roles.Get("", middlewarepostgre.PermissionRequired(db, "user:manage"), GetAllRoles(userService))
 }
